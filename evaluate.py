@@ -54,11 +54,12 @@ def max_drawdown(portfolio_values: np.ndarray) -> float:
 
 def run_backtest(agent: PPOAgent, env: TradingEnv, df):
     obs, _ = env.reset()
+    hidden = agent.init_hidden()
     portfolio_values = [env.initial_cash]
     allocations = []
 
     while True:
-        action, _, _ = agent.select_action(obs)
+        action, _, _, hidden = agent.select_action(obs, hidden)
         obs, reward, terminated, truncated, _ = env.step(action)
         portfolio_values.append(env.portfolio_value)
         allocations.append(float(np.clip(action[0], 0.0, 1.0)))

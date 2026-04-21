@@ -84,17 +84,21 @@ def _run_ppo_training(s: AgentState):
     meta_path = f"checkpoints/{s.ticker}_meta.json"
     lifetime_steps = 0
     if os.path.exists(ckpt_path):
-        agent.load(ckpt_path)
-        if os.path.exists(meta_path):
-            import json
-            with open(meta_path) as f:
-                meta = json.load(f)
-            lifetime_steps = meta.get("lifetime_steps", 0)
-        print(f"[train] Resumed {s.ticker} from {ckpt_path} ({lifetime_steps:,} lifetime steps)")
+        try:
+            agent.load(ckpt_path)
+            if os.path.exists(meta_path):
+                import json
+                with open(meta_path) as f:
+                    meta = json.load(f)
+                lifetime_steps = meta.get("lifetime_steps", 0)
+            print(f"[train] Resumed {s.ticker} from {ckpt_path} ({lifetime_steps:,} lifetime steps)")
+        except Exception:
+            print(f"[train] Checkpoint incompatible (architecture upgraded), starting fresh")
     else:
         print(f"[train] No checkpoint found, starting fresh for {s.ticker}")
 
     obs, _ = env.reset(seed=42)
+    hidden    = agent.init_hidden()
     ep_reward = 0.0
     next_ckpt = 50_000
 
@@ -102,21 +106,23 @@ def _run_ppo_training(s: AgentState):
         if not s.is_training:
             break
 
-        action, log_prob, value = agent.select_action(obs)
+        action, log_prob, value, hidden = agent.select_action(obs, hidden)
         next_obs, reward, terminated, truncated, _ = env.step(action)
         done = terminated or truncated
 
-        agent.buffer.add(obs, action, reward, float(done), value, log_prob)
+        hx = hidden[0].squeeze().cpu().numpy()
+        cx = hidden[1].squeeze().cpu().numpy()
+        agent.buffer.add(obs, action, reward, float(done), value, log_prob, hx, cx)
         ep_reward += reward
         obs = next_obs
 
         alloc = float(np.clip(action[0], 0.0, 1.0))
 
         # Update shared state (GIL protects simple assignments)
-        s.total_steps     = step
-        s.portfolio_value = env.portfolio_value
-        s.cash            = env.cash
-        s.shares_held     = env.shares
+        s.total_steps      = step
+        s.portfolio_value  = env.portfolio_value
+        s.cash             = env.cash
+        s.shares_held      = env.shares
         s.current_position = alloc
         s.portfolio_history.append(round(env.portfolio_value, 2))
         s.action_history.append(round(alloc, 3))
@@ -129,10 +135,11 @@ def _run_ppo_training(s: AgentState):
             s.episode += 1
             ep_reward  = 0.0
             obs, _     = env.reset()
+            hidden     = agent.init_hidden()  # reset memory at episode boundary
 
         # PPO update every rollout
         if step % agent.rollout_steps == 0:
-            _, _, last_value = agent.select_action(obs)
+            _, _, last_value, _ = agent.select_action(obs, hidden)
             agent.update(last_value)
             s.current_loss = round(agent.last_loss, 4)
             s.loss_history.append(s.current_loss)

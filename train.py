@@ -47,18 +47,21 @@ def train():
     )
 
     obs, _ = env.reset(seed=args.seed)
+    hidden = agent.init_hidden()
     ep_reward, ep_rewards = 0.0, []
     next_ckpt = 50_000
     t0 = time.time()
 
-    print(f"Training for {args.steps:,} steps…\n")
+    print(f"Training for {args.steps:,} steps\n")
 
     for step in range(1, args.steps + 1):
-        action, log_prob, value = agent.select_action(obs)
+        action, log_prob, value, hidden = agent.select_action(obs, hidden)
         next_obs, reward, terminated, truncated, _ = env.step(action)
         done = terminated or truncated
 
-        agent.buffer.add(obs, action, reward, float(done), value, log_prob)
+        hx = hidden[0].squeeze().cpu().numpy()
+        cx = hidden[1].squeeze().cpu().numpy()
+        agent.buffer.add(obs, action, reward, float(done), value, log_prob, hx, cx)
         ep_reward += reward
         obs = next_obs
 
@@ -66,10 +69,11 @@ def train():
             ep_rewards.append(ep_reward)
             ep_reward = 0.0
             obs, _ = env.reset()
+            hidden = agent.init_hidden()
 
         # PPO update when rollout buffer is full
         if step % args.rollout_steps == 0:
-            _, _, last_value = agent.select_action(obs)
+            _, _, last_value, _ = agent.select_action(obs, hidden)
             agent.update(last_value)
 
         # Logging
