@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# Checkpoints & data artifacts
+checkpoints/
+backtest.png
+*.pt
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Misc
+.env
+.DS_Store

@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install *)",
+      "Bash(python3 -m pip install -q gymnasium torch numpy pandas yfinance matplotlib ta)",
+      "Bash(python -c \"import sys; print\\(sys.executable\\)\")",
+      "Bash(ls /c/Python*)",
+      "Read(//c/Users/wenli/miniconda3/**)",
+      "Read(//c/Users/wenli/anaconda3/**)",
+      "PowerShell(Get-Command *)",
+      "PowerShell(py *)",
+      "Bash(python *)",
+      "Read(//c/Users/wenli/Downloads/**)",
+      "Bash(unzip -o rl-trader.zip -d rl-trader-new)",
+      "Bash(npm --version)",
+      "Bash(npm create *)",
+      "Bash(cp /c/Users/wenli/Downloads/rl-trader-new/useTraderWS.ts /c/Users/wenli/rl-trader/frontend/src/hooks/useTraderWS.ts)",
+      "Bash(cp /c/Users/wenli/Downloads/rl-trader-new/api.ts /c/Users/wenli/rl-trader/frontend/src/lib/api.ts)",
+      "Bash(cp /c/Users/wenli/Downloads/rl-trader-new/Sparkline.tsx /c/Users/wenli/rl-trader/frontend/src/components/Sparkline.tsx)",
+      "Bash(cp /c/Users/wenli/Downloads/rl-trader-new/index.css /c/Users/wenli/rl-trader/frontend/src/index.css)",
+      "Bash(cp /c/Users/wenli/Downloads/rl-trader-new/App.tsx /c/Users/wenli/rl-trader/frontend/src/App.tsx)",
+      "Bash(npm install *)",
+      "Bash(npm run *)"
+    ]
+  }
+}
