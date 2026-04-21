@@ -20,7 +20,11 @@
       "Bash(cp /c/Users/wenli/Downloads/rl-trader-new/index.css /c/Users/wenli/rl-trader/frontend/src/index.css)",
       "Bash(cp /c/Users/wenli/Downloads/rl-trader-new/App.tsx /c/Users/wenli/rl-trader/frontend/src/App.tsx)",
       "Bash(npm install *)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(git remote *)",
+      "Bash(git push *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }

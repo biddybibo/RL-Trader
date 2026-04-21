@@ -25,6 +25,7 @@ interface AppState {
   lossHistory: number[];
   priceHistory: number[];
   tradeLog: TradeEntry[];
+  lifetimeSteps: number;
 }
 
 const DEFAULT_STATE: AppState = {
@@ -33,6 +34,7 @@ const DEFAULT_STATE: AppState = {
   sharesHeld: 0, position: 0, sharpe: 0, maxDrawdown: 0,
   totalReturn: 0, price: 182, reward: 0,
   portfolioHistory: [], lossHistory: [], priceHistory: [], tradeLog: [],
+  lifetimeSteps: 0,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────
@@ -93,6 +95,7 @@ export default function App() {
         lossHistory:      d.loss_history || [],
         priceHistory:     d.price_history || [],
         tradeLog:         d.trade_log || [],
+        lifetimeSteps:    d.lifetime_steps || 0,
       }));
     }).catch(() => {});
   }, []);
@@ -362,6 +365,9 @@ export default function App() {
       {/* ── Status bar ── */}
       <footer className="statusbar">
         <span>PPO · ActorCritic · GAE-λ</span>
+        <span style={{ color: "var(--purple)", fontFamily: "var(--mono)", fontSize: 10 }}>
+          lifetime: {state.lifetimeSteps.toLocaleString()} steps
+        </span>
         <span className={state.isTraining ? "status-training" : "status-idle"}>
           {state.isTraining ? "● training" : "○ idle"}
         </span>

@@ -43,6 +43,23 @@ agent_state = AgentState()
 _training_thread: threading.Thread | None = None
 
 
+# ── Helpers ───────────────────────────────────────────────────────────
+
+def _save_meta(path: str, lifetime_steps: int, ticker: str):
+    import json
+    with open(path, "w") as f:
+        json.dump({"lifetime_steps": lifetime_steps, "ticker": ticker, "updated": time.strftime("%Y-%m-%d %H:%M:%S")}, f)
+
+
+def _load_lifetime_steps(ticker: str) -> int:
+    import json
+    meta_path = f"checkpoints/{ticker}_meta.json"
+    if os.path.exists(meta_path):
+        with open(meta_path) as f:
+            return json.load(f).get("lifetime_steps", 0)
+    return 0
+
+
 # ── Real PPO training (runs in background thread) ─────────────────────
 
 def _run_ppo_training(s: AgentState):
@@ -60,9 +77,25 @@ def _run_ppo_training(s: AgentState):
 
     agent = PPOAgent(obs_dim=obs_dim, act_dim=act_dim, rollout_steps=2048)
 
+    os.makedirs("checkpoints", exist_ok=True)
+
+    # Resume from latest checkpoint if one exists
+    ckpt_path = f"checkpoints/{s.ticker}_latest.pt"
+    meta_path = f"checkpoints/{s.ticker}_meta.json"
+    lifetime_steps = 0
+    if os.path.exists(ckpt_path):
+        agent.load(ckpt_path)
+        if os.path.exists(meta_path):
+            import json
+            with open(meta_path) as f:
+                meta = json.load(f)
+            lifetime_steps = meta.get("lifetime_steps", 0)
+        print(f"[train] Resumed {s.ticker} from {ckpt_path} ({lifetime_steps:,} lifetime steps)")
+    else:
+        print(f"[train] No checkpoint found, starting fresh for {s.ticker}")
+
     obs, _ = env.reset(seed=42)
     ep_reward = 0.0
-    os.makedirs("checkpoints", exist_ok=True)
     next_ckpt = 50_000
 
     for step in range(1, s.total_steps_target + 1):
@@ -122,12 +155,15 @@ def _run_ppo_training(s: AgentState):
             })
 
         if step >= next_ckpt:
-            agent.save(f"checkpoints/ppo_{step}.pt")
-            print(f"[train] checkpoint -> checkpoints/ppo_{step}.pt")
+            agent.save(f"checkpoints/{s.ticker}_{lifetime_steps + step}.pt")
+            agent.save(ckpt_path)  # always overwrite latest
+            _save_meta(meta_path, lifetime_steps + step, s.ticker)
+            print(f"[train] checkpoint -> {s.ticker} lifetime {lifetime_steps + step:,} steps")
             next_ckpt += 50_000
 
-    agent.save("checkpoints/ppo_final.pt")
-    print("[train] done -> checkpoints/ppo_final.pt")
+    agent.save(ckpt_path)
+    _save_meta(meta_path, lifetime_steps + s.total_steps_target, s.ticker)
+    print(f"[train] done -> {s.ticker} lifetime {lifetime_steps + s.total_steps_target:,} steps")
     s.is_training = False
 
 
@@ -229,6 +265,7 @@ def get_status():
         "loss_history":       list(s.loss_history),
         "price_history":      list(s._price_history),
         "trade_log":          list(s.trade_log),
+        "lifetime_steps":     _load_lifetime_steps(s.ticker),
     }
 
 
