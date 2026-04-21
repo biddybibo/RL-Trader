@@ -126,7 +126,7 @@ html, body, #root { height: 100%; background: var(--bg); color: var(--text); fon
 .grid {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  grid-template-rows: auto auto;
+  grid-template-rows: auto auto auto;
   gap: 1px;
   background: var(--border);
   flex: 1;
@@ -138,12 +138,18 @@ html, body, #root { height: 100%; background: var(--bg); color: var(--text); fon
   transition: background 0.3s;
 }
 
-.card-portfolio { grid-column: 1; grid-row: 1; }
-.card-price     { grid-column: 2; grid-row: 1; }
-.card-metrics   { grid-column: 3; grid-row: 1; }
-.card-position  { grid-column: 1; grid-row: 2; }
-.card-loss      { grid-column: 2; grid-row: 2; }
-.card-trades    { grid-column: 3; grid-row: 2; }
+.card-portfolio  { grid-column: 1;     grid-row: 1; }
+.card-price      { grid-column: 2;     grid-row: 1; }
+.card-metrics    { grid-column: 3;     grid-row: 1; }
+.card-position   { grid-column: 1;     grid-row: 2; }
+.card-loss       { grid-column: 2;     grid-row: 2; }
+.card-trades     { grid-column: 3;     grid-row: 2; }
+.card-walkforward{ grid-column: 1 / 4; grid-row: 3; }
+
+/* ── Walk-forward stats ── */
+.wf-stat       { display: flex; flex-direction: column; gap: 2px; }
+.wf-stat-label { font-size: 9px; color: var(--muted); font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.08em; }
+.wf-stat-val   { font-family: var(--mono); font-size: 13px; font-weight: 700; }
 
 .flash-buy  { animation: flashBuy  0.5s ease; }
 .flash-sell { animation: flashSell 0.5s ease; }

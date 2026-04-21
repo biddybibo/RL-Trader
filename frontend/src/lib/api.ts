@@ -23,3 +23,22 @@ export async function pauseTraining() {
   const r = await fetch(`${BASE}/api/train/pause`, { method: "POST" });
   return r.json();
 }
+
+export async function getWalkForward(ticker: string) {
+  const r = await fetch(`${BASE}/api/walkforward/${ticker}`);
+  return r.json();
+}
+
+export async function getWalkForwardStatus() {
+  const r = await fetch(`${BASE}/api/walkforward/status/current`);
+  return r.json();
+}
+
+export async function runWalkForward(ticker: string, stepsPerWindow = 20_000) {
+  const r = await fetch(`${BASE}/api/walkforward/run`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ticker, steps_per_window: stepsPerWindow }),
+  });
+  return r.json();
+}

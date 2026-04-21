@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useTraderWS } from "./hooks/useTraderWS";
 import type { TradeEntry } from "./hooks/useTraderWS";
-import { getStatus, startTraining, stopTraining, pauseTraining } from "./lib/api";
+import { getStatus, startTraining, stopTraining, pauseTraining, getWalkForward, runWalkForward } from "./lib/api";
 import { Sparkline } from "./components/Sparkline";
+import { WalkForwardChart } from "./components/WalkForwardChart";
+import type { WFWindow } from "./components/WalkForwardChart";
 import "./index.css";
 
 // ── Types ─────────────────────────────────────────────────────────────
@@ -75,6 +77,9 @@ export default function App() {
   const [ticker, setTicker] = useState("AAPL");
   const [stepsInput, setStepsInput] = useState("500000");
   const [flash, setFlash] = useState<"buy" | "sell" | null>(null);
+  const [wfWindows, setWfWindows] = useState<WFWindow[]>([]);
+  const [wfSummary, setWfSummary] = useState({ avg_test_sharpe: 0, generalization_gap: 0, trend_slope: 0 });
+  const [wfRunning, setWfRunning] = useState(false);
   const prevPos = useRef(0);
   const { connected, lastTick } = useTraderWS("ws://localhost:8000/ws");
 
@@ -99,6 +104,33 @@ export default function App() {
       }));
     }).catch(() => {});
   }, []);
+
+  // Load walk-forward results when ticker changes
+  useEffect(() => {
+    getWalkForward(ticker).then((d) => {
+      setWfWindows(d.windows || []);
+      setWfSummary({
+        avg_test_sharpe:   d.avg_test_sharpe  || 0,
+        generalization_gap: d.generalization_gap || 0,
+        trend_slope:       d.trend_slope       || 0,
+      });
+    }).catch(() => {});
+  }, [ticker]);
+
+  const handleRunWalkForward = useCallback(async () => {
+    setWfRunning(true);
+    await runWalkForward(ticker, 20_000);
+    // Poll until done
+    const poll = setInterval(async () => {
+      const d = await getWalkForward(ticker);
+      if (d.windows?.length > 0) {
+        setWfWindows(d.windows);
+        setWfSummary({ avg_test_sharpe: d.avg_test_sharpe, generalization_gap: d.generalization_gap, trend_slope: d.trend_slope });
+      }
+      const s = await fetch("http://localhost:8000/api/walkforward/status/current").then(r => r.json());
+      if (!s.running) { setWfRunning(false); clearInterval(poll); }
+    }, 5000);
+  }, [ticker]);
 
   // Handle WS ticks
   useEffect(() => {
@@ -358,6 +390,51 @@ export default function App() {
               </div>
             ))}
           </div>
+        </div>
+
+        {/* ── Walk-forward panel ── */}
+        <div className="card card-walkforward">
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <div>
+              <div className="card-label">Generalization Analysis — Walk-Forward</div>
+              <div style={{ fontSize: 10, color: "var(--muted)", fontFamily: "var(--mono)", marginTop: 2 }}>
+                Gray = train Sharpe · Green/Red = test Sharpe (unseen data) · Orange dashed = buy-and-hold
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              {wfWindows.length > 0 && (
+                <div style={{ display: "flex", gap: 20 }}>
+                  <div className="wf-stat">
+                    <span className="wf-stat-label">Avg Test Sharpe</span>
+                    <span className={`wf-stat-val ${wfSummary.avg_test_sharpe >= 0.5 ? "pos" : wfSummary.avg_test_sharpe < 0 ? "neg" : "neutral"}`}>
+                      {wfSummary.avg_test_sharpe >= 0 ? "+" : ""}{wfSummary.avg_test_sharpe.toFixed(3)}
+                    </span>
+                  </div>
+                  <div className="wf-stat">
+                    <span className="wf-stat-label">Gen. Gap</span>
+                    <span className={`wf-stat-val ${wfSummary.generalization_gap < 0.3 ? "pos" : "neg"}`}>
+                      {wfSummary.generalization_gap.toFixed(3)}
+                    </span>
+                  </div>
+                  <div className="wf-stat">
+                    <span className="wf-stat-label">Trend</span>
+                    <span className={`wf-stat-val ${wfSummary.trend_slope > 0.02 ? "pos" : wfSummary.trend_slope < -0.02 ? "neg" : "neutral"}`}>
+                      {wfSummary.trend_slope > 0.02 ? "IMPROVING ↑" : wfSummary.trend_slope < -0.02 ? "DECLINING ↓" : "STABLE →"}
+                    </span>
+                  </div>
+                </div>
+              )}
+              <button
+                className={`btn ${wfRunning ? "btn-pause" : "btn-start"}`}
+                onClick={handleRunWalkForward}
+                disabled={wfRunning || state.isTraining}
+                style={{ fontSize: 10, padding: "5px 12px" }}
+              >
+                {wfRunning ? "⏳ Analyzing…" : "⚡ Run Analysis"}
+              </button>
+            </div>
+          </div>
+          <WalkForwardChart windows={wfWindows} height={180} />
         </div>
 
       </main>
