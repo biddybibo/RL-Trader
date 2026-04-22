@@ -104,9 +104,13 @@ def _compute_metrics(pv_arr: np.ndarray):
 
 def _run_ppo_training(s: AgentState):
     import json
+    import torch
     from data.fetch import fetch
     from env.trading_env import TradingEnv
     from agent.ppo import PPOAgent
+
+    # Pin PyTorch to 1 thread — avoids core contention with FastAPI's thread pool
+    torch.set_num_threads(1)
 
     # ── Pre-load entire multi-asset basket ───────────────────────────
     print("[train] Loading multi-asset basket...")
@@ -157,6 +161,18 @@ def _run_ppo_training(s: AgentState):
     next_ckpt = 50_000
     ep_turnover_acc: list[float] = []
 
+    # Pre-cache df lengths to avoid recomputing min() inside the hot loop
+    df_last_idx: dict[str, int] = {t: len(df) - 1 for t, df in ticker_data.items()}
+    cur_df_last = df_last_idx[cur_ticker]
+
+    # Batch state writes every N steps — broadcast only reads 10×/sec
+    _STATE_WRITE_EVERY = 10
+    _local_pv:    float = 10_000.0
+    _local_cash:  float = 10_000.0
+    _local_alloc: float = 0.0
+    _local_rew:   float = 0.0
+    _local_price: float = 0.0
+
     for step in range(1, s.total_steps_target + 1):
         if not s.is_training:
             break
@@ -168,20 +184,27 @@ def _run_ppo_training(s: AgentState):
         hx = hidden[0].squeeze().cpu().numpy()
         cx = hidden[1].squeeze().cpu().numpy()
         agent.buffer.add(obs, action, reward, float(done), value, log_prob, hx, cx)
-        obs  = next_obs
+        obs   = next_obs
         alloc = float(np.clip(action[0], 0.0, 1.0))
 
-        # Shared state updates
-        s.total_steps      = step
-        s.portfolio_value  = env.portfolio_value
-        s.cash             = env.cash
-        s.shares_held      = env.shares
-        s.current_position = alloc
-        s.portfolio_history.append(round(env.portfolio_value, 2))
-        s.action_history.append(round(alloc, 3))
-        s.reward_history.append(round(float(reward), 5))
-        price_idx = min(env.t, len(ticker_data[cur_ticker]) - 1)
-        s._price_history.append(round(float(ticker_data[cur_ticker].iloc[price_idx]["close"]), 2))
+        # Keep locals hot — deques and shared state only updated every N steps
+        _local_pv    = env.portfolio_value
+        _local_cash  = env.cash
+        _local_alloc = alloc
+        _local_rew   = float(reward)
+        price_idx    = min(env.t, cur_df_last)
+        _local_price = float(ticker_data[cur_ticker].iloc[price_idx]["close"])
+
+        if step % _STATE_WRITE_EVERY == 0:
+            s.total_steps      = step
+            s.portfolio_value  = round(_local_pv, 2)
+            s.cash             = round(_local_cash, 2)
+            s.shares_held      = env.shares
+            s.current_position = _local_alloc
+            s.portfolio_history.append(round(_local_pv, 2))
+            s.action_history.append(round(_local_alloc, 3))
+            s.reward_history.append(round(_local_rew, 5))
+            s._price_history.append(round(_local_price, 2))
 
         if done:
             s.episode += 1
@@ -189,6 +212,7 @@ def _run_ppo_training(s: AgentState):
             env, cur_ticker = _new_env()
             obs, _ = env.reset()
             hidden = agent.init_hidden()
+            cur_df_last = df_last_idx[cur_ticker]
 
         # ── PPO update ────────────────────────────────────────────────
         if step % agent.rollout_steps == 0:
@@ -205,12 +229,12 @@ def _run_ppo_training(s: AgentState):
             s.max_drawdown  = max_dd
             s.total_return  = total_r
 
-            rw   = list(s.reward_history)
-            wins = [r for r in rw if r > 0]
-            loss = [r for r in rw if r < 0]
-            s.win_rate      = round(len(wins) / max(len(rw), 1) * 100, 1)
-            avg_win  = float(np.mean(wins))  if wins else 0.0
-            avg_loss = float(np.mean([abs(r) for r in loss])) if loss else 1e-8
+            rw_arr   = np.array(list(s.reward_history))
+            wins_arr = rw_arr[rw_arr > 0]
+            loss_arr = rw_arr[rw_arr < 0]
+            s.win_rate       = round(len(wins_arr) / max(len(rw_arr), 1) * 100, 1)
+            avg_win  = float(wins_arr.mean())       if len(wins_arr) else 0.0
+            avg_loss = float(np.abs(loss_arr).mean()) if len(loss_arr) else 1e-8
             s.win_loss_ratio = round(avg_win / (avg_loss + 1e-9), 2)
 
             if ep_turnover_acc:
@@ -320,7 +344,7 @@ async def broadcast_loop():
         elif not agent_state.is_training and manager.active:
             await manager.broadcast({"type": "training_complete", "steps": agent_state.total_steps})
 
-        await asyncio.sleep(0.25)
+        await asyncio.sleep(0.1)
 
 
 # ── Lifespan ──────────────────────────────────────────────────────────
