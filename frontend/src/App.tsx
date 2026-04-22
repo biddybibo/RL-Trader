@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useTraderWS } from "./hooks/useTraderWS";
 import type { TradeEntry } from "./hooks/useTraderWS";
 import { getStatus, startTraining, stopTraining, pauseTraining, getWalkForward, runWalkForward } from "./lib/api";
-import { Sparkline } from "./components/Sparkline";
+import { StatCard } from "./components/StatCard";
+import { DualLineChart } from "./components/DualLineChart";
+import { SharpeTrend } from "./components/SharpeTrend";
 import { WalkForwardChart } from "./components/WalkForwardChart";
-import { EfficiencyPanel } from "./components/EfficiencyPanel";
 import type { WFWindow } from "./components/WalkForwardChart";
 import "./index.css";
 
@@ -17,7 +19,6 @@ interface AppState {
   loss: number;
   portfolioValue: number;
   cash: number;
-  sharesHeld: number;
   position: number;
   sharpe: number;
   sortino: number;
@@ -39,62 +40,36 @@ interface AppState {
 const DEFAULT_STATE: AppState = {
   isTraining: false, totalSteps: 0, totalStepsTarget: 500000,
   episode: 0, loss: 0, portfolioValue: 10000, cash: 10000,
-  sharesHeld: 0, position: 0, sharpe: 0, sortino: 0, calmar: 0,
+  position: 0, sharpe: 0, sortino: 0, calmar: 0,
   maxDrawdown: 0, totalReturn: 0, winLossRatio: 0, avgTurnover: 0,
-  price: 182, reward: 0,
+  price: 0, reward: 0,
   portfolioHistory: [], lossHistory: [], priceHistory: [], tradeLog: [],
   lifetimeSteps: 0, currentEpTicker: "",
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────
 const fmt$ = (n: number) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 }).format(n);
+  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 }).format(n);
 
 const fmtPct = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`;
-
-function PositionMeter({ value }: { value: number }) {
-  const pct = ((value + 1) / 2) * 100;
-  const color = value > 0.15 ? "#00ff9d" : value < -0.15 ? "#ff4d6d" : "#f0b429";
-  return (
-    <div style={{ marginTop: 4 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#555", marginBottom: 3 }}>
-        <span>SELL</span><span>HOLD</span><span>BUY</span>
-      </div>
-      <div style={{ position: "relative", height: 6, background: "#1a1a1a", borderRadius: 3, overflow: "hidden" }}>
-        <div style={{
-          position: "absolute", left: 0, top: 0, bottom: 0,
-          width: `${pct}%`, background: color,
-          borderRadius: 3, transition: "width 0.3s ease, background 0.3s ease",
-        }} />
-        <div style={{
-          position: "absolute", top: "50%", left: "50%",
-          transform: "translate(-50%,-50%)", width: 1, height: 10, background: "#333",
-        }} />
-      </div>
-      <div style={{ textAlign: "center", fontSize: 11, color, marginTop: 3, fontFamily: "monospace" }}>
-        {value >= 0 ? "+" : ""}{(value * 100).toFixed(1)}%
-      </div>
-    </div>
-  );
-}
+const fmtFixed2 = (n: number) => n.toFixed(2);
 
 // ── Main App ──────────────────────────────────────────────────────────
 export default function App() {
   const [state, setState] = useState<AppState>(DEFAULT_STATE);
   const [ticker, setTicker] = useState("AAPL");
   const [stepsInput, setStepsInput] = useState("500000");
-  const [flash, setFlash] = useState<"buy" | "sell" | null>(null);
+  const [winRate, setWinRate] = useState(0);
+  const [stepsPerSec, setStepsPerSec] = useState(0);
+  const [rolloutCount, setRolloutCount] = useState(0);
+  const [effLoss, setEffLoss] = useState<number[]>([]);
+  const [effSharpe, setEffSharpe] = useState<number[]>([]);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerTab, setDrawerTab] = useState<"wf" | "trades">("wf");
   const [wfWindows, setWfWindows] = useState<WFWindow[]>([]);
   const [wfSummary, setWfSummary] = useState({ avg_test_sharpe: 0, generalization_gap: 0, trend_slope: 0 });
   const [wfRunning, setWfRunning] = useState(false);
-  const [effLoss,    setEffLoss]    = useState<number[]>([]);
-  const [effSharpe,  setEffSharpe]  = useState<number[]>([]);
-  const [effReturn,  setEffReturn]  = useState<number[]>([]);
-  const [effWinRate, setEffWinRate] = useState<number[]>([]);
-  const [effSteps,   setEffSteps]   = useState<number[]>([]);
-  const [winRate,      setWinRate]      = useState(0);
-  const [stepsPerSec,  setStepsPerSec]  = useState(0);
-  const [rolloutCount, setRolloutCount] = useState(0);
+
   const prevRolloutCount = useRef(0);
   const prevPos = useRef(0);
   const { connected, lastTick } = useTraderWS("ws://localhost:8000/ws");
@@ -109,25 +84,22 @@ export default function App() {
         totalStepsTarget: d.total_steps_target,
         episode:          d.episode,
         portfolioValue:   d.portfolio_value,
-        sharpe:           d.sharpe      ?? s.sharpe,
-        sortino:          d.sortino     ?? s.sortino,
-        calmar:           d.calmar      ?? s.calmar,
+        sharpe:           d.sharpe       ?? s.sharpe,
+        sortino:          d.sortino      ?? s.sortino,
+        calmar:           d.calmar       ?? s.calmar,
         maxDrawdown:      d.max_drawdown,
         totalReturn:      d.total_return,
         winLossRatio:     d.win_loss_ratio ?? s.winLossRatio,
         avgTurnover:      d.avg_turnover   ?? s.avgTurnover,
         portfolioHistory: d.portfolio_history || [],
-        lossHistory:      d.loss_history || [],
-        priceHistory:     d.price_history || [],
-        tradeLog:         d.trade_log || [],
-        lifetimeSteps:    d.lifetime_steps || 0,
+        lossHistory:      d.loss_history     || [],
+        priceHistory:     d.price_history    || [],
+        tradeLog:         d.trade_log        || [],
+        lifetimeSteps:    d.lifetime_steps   || 0,
         currentEpTicker:  d.current_ep_ticker ?? "",
       }));
-      if (d.eff_loss?.length)     setEffLoss(d.eff_loss);
-      if (d.eff_sharpe?.length)   setEffSharpe(d.eff_sharpe);
-      if (d.eff_return?.length)   setEffReturn(d.eff_return);
-      if (d.eff_win_rate?.length) setEffWinRate(d.eff_win_rate);
-      if (d.eff_steps?.length)    setEffSteps(d.eff_steps);
+      if (d.eff_loss?.length)   setEffLoss(d.eff_loss);
+      if (d.eff_sharpe?.length) setEffSharpe(d.eff_sharpe);
       if (d.win_rate !== undefined)      setWinRate(d.win_rate);
       if (d.steps_per_sec !== undefined) setStepsPerSec(d.steps_per_sec);
       if (d.rollout_count !== undefined) {
@@ -137,14 +109,14 @@ export default function App() {
     }).catch(() => {});
   }, []);
 
-  // Load walk-forward results when ticker changes
+  // Load walk-forward
   useEffect(() => {
     getWalkForward(ticker).then((d) => {
       setWfWindows(d.windows || []);
       setWfSummary({
-        avg_test_sharpe:   d.avg_test_sharpe  || 0,
+        avg_test_sharpe:    d.avg_test_sharpe    || 0,
         generalization_gap: d.generalization_gap || 0,
-        trend_slope:       d.trend_slope       || 0,
+        trend_slope:        d.trend_slope        || 0,
       });
     }).catch(() => {});
   }, [ticker]);
@@ -152,11 +124,10 @@ export default function App() {
   const handleRunWalkForward = useCallback(async () => {
     setWfRunning(true);
     await runWalkForward(ticker, 20_000);
-    // Poll until done
     const poll = setInterval(async () => {
       const [d, s] = await Promise.all([
         getWalkForward(ticker),
-        fetch("http://localhost:8000/api/walkforward/status/current").then(r => r.json()),
+        fetch("http://localhost:8000/api/walkforward/status/current").then((r) => r.json()),
       ]);
       if (d.windows?.length > 0) {
         setWfWindows(d.windows);
@@ -165,11 +136,7 @@ export default function App() {
       if (!s.running) {
         clearInterval(poll);
         setWfRunning(false);
-        if (s.error) {
-          alert(`Walk-forward failed:\n\n${s.error}`);
-          return;
-        }
-        // One final fetch in case the file was written after the parallel fetch above
+        if (s.error) { alert(`Walk-forward failed:\n\n${s.error}`); return; }
         getWalkForward(ticker).then((final) => {
           if (final.windows?.length > 0) {
             setWfWindows(final.windows);
@@ -180,7 +147,7 @@ export default function App() {
     }, 5000);
   }, [ticker]);
 
-  // Handle WS ticks
+  // WebSocket ticks
   useEffect(() => {
     if (!lastTick) return;
     const t = lastTick;
@@ -188,11 +155,11 @@ export default function App() {
     if (t.type === "init") {
       setState((s) => ({
         ...s,
-        isTraining:       t.is_training ?? s.isTraining,
+        isTraining:       t.is_training      ?? s.isTraining,
         portfolioHistory: t.portfolio_history ?? s.portfolioHistory,
-        lossHistory:      t.loss_history ?? s.lossHistory,
-        priceHistory:     t.price_history ?? s.priceHistory,
-        tradeLog:         t.trade_log ?? s.tradeLog,
+        lossHistory:      t.loss_history      ?? s.lossHistory,
+        priceHistory:     t.price_history     ?? s.priceHistory,
+        tradeLog:         t.trade_log         ?? s.tradeLog,
       }));
       return;
     }
@@ -204,63 +171,53 @@ export default function App() {
 
     if (t.type === "tick") {
       const pos = t.position ?? 0;
-      if (Math.abs(pos - prevPos.current) > 0.3) {
-        setFlash(pos > prevPos.current ? "buy" : "sell");
-        setTimeout(() => setFlash(null), 600);
-      }
-      prevPos.current = pos;
+      if (Math.abs(pos - prevPos.current) > 0.5) prevPos.current = pos;
 
       if (t.win_rate      !== undefined) setWinRate(t.win_rate);
       if (t.steps_per_sec !== undefined) setStepsPerSec(t.steps_per_sec);
+
       const rc = t.rollout_count;
       if (rc !== undefined) {
         setRolloutCount(rc);
         if (rc > prevRolloutCount.current) {
           prevRolloutCount.current = rc;
-          const loss       = t.loss;
-          const sharpe     = t.sharpe;
-          const ret        = t.total_return;
-          const winRate    = t.win_rate;
-          const step       = t.total_steps;
-          if (loss     !== undefined) setEffLoss(h     => [...h, loss]);
-          if (sharpe   !== undefined) setEffSharpe(h   => [...h, sharpe]);
-          if (ret      !== undefined) setEffReturn(h   => [...h, ret]);
-          if (winRate  !== undefined) setEffWinRate(h  => [...h, winRate]);
-          if (step     !== undefined) setEffSteps(h    => [...h, step]);
+          const loss   = t.loss;
+          const sharpe = t.sharpe;
+          if (loss   !== undefined) setEffLoss(h   => [...h.slice(-299), loss]);
+          if (sharpe !== undefined) setEffSharpe(h => [...h.slice(-299), sharpe]);
         }
       }
 
       setState((s) => ({
         ...s,
-        isTraining:       t.is_training !== undefined ? t.is_training : s.isTraining,
-        totalSteps:       t.total_steps ?? s.totalSteps,
+        isTraining:       t.is_training       !== undefined ? t.is_training : s.isTraining,
+        totalSteps:       t.total_steps        ?? s.totalSteps,
         totalStepsTarget: t.total_steps_target ?? s.totalStepsTarget,
-        episode:          t.episode ?? s.episode,
-        loss:             t.loss ?? s.loss,
-        portfolioValue:   t.portfolio_value ?? s.portfolioValue,
-        cash:             t.cash ?? s.cash,
-        sharesHeld:       t.shares_held ?? s.sharesHeld,
+        episode:          t.episode            ?? s.episode,
+        loss:             t.loss               ?? s.loss,
+        portfolioValue:   t.portfolio_value    ?? s.portfolioValue,
+        cash:             t.cash               ?? s.cash,
         position:         pos,
-        sharpe:           t.sharpe ?? s.sharpe,
-        sortino:          t.sortino ?? s.sortino,
-        calmar:           t.calmar ?? s.calmar,
-        maxDrawdown:      t.max_drawdown ?? s.maxDrawdown,
-        totalReturn:      t.total_return ?? s.totalReturn,
-        winLossRatio:     t.win_loss_ratio ?? s.winLossRatio,
-        avgTurnover:      t.avg_turnover ?? s.avgTurnover,
-        price:            t.price ?? s.price,
-        reward:           t.reward ?? s.reward,
-        currentEpTicker:  t.current_ep_ticker ?? s.currentEpTicker,
-        tradeLog:         t.trade_log ?? s.tradeLog,
-        portfolioHistory: s.portfolioHistory.length === 0 && t.portfolio_value
-          ? [t.portfolio_value]
-          : [...s.portfolioHistory.slice(-299), t.portfolio_value ?? s.portfolioValue],
-        lossHistory: t.loss
-          ? [...s.lossHistory.slice(-199), t.loss]
-          : s.lossHistory,
-        priceHistory: t.price
+        sharpe:           t.sharpe             ?? s.sharpe,
+        sortino:          t.sortino            ?? s.sortino,
+        calmar:           t.calmar             ?? s.calmar,
+        maxDrawdown:      t.max_drawdown       ?? s.maxDrawdown,
+        totalReturn:      t.total_return       ?? s.totalReturn,
+        winLossRatio:     t.win_loss_ratio     ?? s.winLossRatio,
+        avgTurnover:      t.avg_turnover       ?? s.avgTurnover,
+        price:            t.price              ?? s.price,
+        reward:           t.reward             ?? s.reward,
+        currentEpTicker:  t.current_ep_ticker  ?? s.currentEpTicker,
+        tradeLog:         t.trade_log          ?? s.tradeLog,
+        portfolioHistory: t.portfolio_value !== undefined
+          ? [...s.portfolioHistory.slice(-299), t.portfolio_value]
+          : s.portfolioHistory,
+        priceHistory: t.price !== undefined
           ? [...s.priceHistory.slice(-299), t.price]
           : s.priceHistory,
+        lossHistory: t.loss !== undefined
+          ? [...s.lossHistory.slice(-199), t.loss]
+          : s.lossHistory,
       }));
     }
   }, [lastTick]);
@@ -281,285 +238,321 @@ export default function App() {
     setState((s) => ({ ...s, isTraining: res.is_training }));
   }, []);
 
-  const progress = Math.min((state.totalSteps / state.totalStepsTarget) * 100, 100);
-  const returnPositive = state.totalReturn >= 0;
+  const progress = Math.min((state.totalSteps / (state.totalStepsTarget || 1)) * 100, 100);
+  const returnPos = state.totalReturn >= 0;
+
+  // Position bar fill (0 = all sell, 50 = hold, 100 = all buy)
+  const posPct = ((state.position + 1) / 2) * 100;
+  const posColor = state.position > 0.15 ? "var(--green)" : state.position < -0.15 ? "var(--red)" : "var(--yellow)";
 
   return (
     <div className="app">
+
       {/* ── Header ── */}
       <header className="header">
-        <div className="header-left">
-          <div className="logo">
-            <span className="logo-icon" />
-            <span className="logo-text">RL<span className="logo-accent">trader</span></span>
-          </div>
-          <div className={`ws-badge ${connected ? "ws-connected" : "ws-disconnected"}`}>
-            <span className="ws-dot" />
-            {connected ? "live" : "reconnecting"}
-          </div>
+        <div className="logo">
+          <div className="logo-dot" />
+          <span className="logo-text">RL<span>trader</span></span>
         </div>
-        <div className="header-controls">
+
+        <div className={`ws-pill ${connected ? "live" : "dead"}`}>
+          <span className="ws-dot" />
+          {connected ? "live" : "reconnecting"}
+        </div>
+
+        <div className="controls">
           <select
+            className="ticker-select"
             value={ticker}
             onChange={(e) => setTicker(e.target.value)}
-            className="select-input"
             disabled={state.isTraining}
           >
-            {["AAPL","MSFT","GOOGL","TSLA","SPY","NVDA","AMZN"].map(t => (
-              <option key={t} value={t}>{t}</option>
+            {["AAPL","MSFT","GOOGL","TSLA","SPY","NVDA","AMZN"].map((t) => (
+              <option key={t}>{t}</option>
             ))}
           </select>
+
           <input
+            className="steps-input"
             type="number"
             value={stepsInput}
             onChange={(e) => setStepsInput(e.target.value)}
-            className="steps-input"
             disabled={state.isTraining}
             placeholder="Steps"
           />
-          {!state.isTraining ? (
-            <button className="btn btn-start" onClick={handleStart}>
-              <span className="btn-icon">▶</span> Start Training
-            </button>
-          ) : (
-            <>
-              <button className="btn btn-pause" onClick={handlePause}>⏸ Pause</button>
-              <button className="btn btn-stop" onClick={handleStop}>■ Stop</button>
-            </>
-          )}
+
+          <AnimatePresence mode="wait">
+            {!state.isTraining ? (
+              <motion.button
+                key="start"
+                className="btn btn-start"
+                onClick={handleStart}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ duration: 0.15 }}
+              >
+                ▶ Start
+              </motion.button>
+            ) : (
+              <motion.div
+                key="controls"
+                style={{ display: "flex", gap: 6 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <button className="btn btn-pause" onClick={handlePause}>⏸ Pause</button>
+                <button className="btn btn-stop"  onClick={handleStop}>■ Stop</button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </header>
 
-      {/* ── Progress bar ── */}
-      <div className="progress-bar-wrap">
-        <div className="progress-bar-track">
-          <div className="progress-bar-fill" style={{ width: `${progress}%` }} />
-        </div>
-        <div className="progress-labels">
-          <span>{state.totalSteps.toLocaleString()} steps</span>
-          <span>{progress.toFixed(1)}%</span>
-          <span>ep {state.episode}</span>
-        </div>
+      {/* ── Progress strip ── */}
+      <div className="progress-strip">
+        <motion.div
+          className="progress-fill"
+          animate={{ width: `${progress}%` }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+        />
       </div>
 
-      {/* ── Main grid ── */}
-      <main className="grid">
+      {/* ── Zone 1: Stats rail ── */}
+      <div className="stats-rail">
+        <StatCard
+          label="Steps"
+          value={state.totalSteps}
+          format={(n) => (n / 1000).toFixed(0) + "k"}
+          sub={`${progress.toFixed(1)}%`}
+        />
+        <StatCard
+          label="Episode"
+          value={state.episode}
+          format={(n) => n.toFixed(0)}
+          sub={state.currentEpTicker || undefined}
+        />
+        <StatCard
+          label="Portfolio"
+          value={state.portfolioValue}
+          format={fmt$}
+          colorClass={returnPos ? "pos" : "neg"}
+          sub={fmtPct(state.totalReturn)}
+        />
+        <StatCard
+          label="Sharpe"
+          value={state.sharpe}
+          format={fmtFixed2}
+          colorClass={state.sharpe >= 1 ? "pos" : state.sharpe < 0 ? "neg" : ""}
+        />
+        <StatCard
+          label="Sortino"
+          value={state.sortino}
+          format={fmtFixed2}
+          colorClass={state.sortino >= 1.5 ? "pos" : state.sortino < 0 ? "neg" : ""}
+        />
+        <StatCard
+          label="Max DD"
+          value={state.maxDrawdown}
+          format={(n) => n.toFixed(1) + "%"}
+          colorClass="neg"
+        />
+        <StatCard
+          label="Win Rate"
+          value={winRate * 100}
+          format={(n) => n.toFixed(1) + "%"}
+          colorClass={winRate >= 0.5 ? "pos" : "neg"}
+          sub={`${rolloutCount} rollouts`}
+        />
+        <StatCard
+          label="Steps/sec"
+          value={stepsPerSec}
+          format={(n) => n.toFixed(0)}
+          colorClass="blue"
+          sub={`${(state.lifetimeSteps / 1000).toFixed(0)}k lifetime`}
+        />
+      </div>
 
-        {/* ── Portfolio card ── */}
-        <div className={`card card-portfolio ${flash === "buy" ? "flash-buy" : flash === "sell" ? "flash-sell" : ""}`}>
-          <div className="card-label">Portfolio Value</div>
-          <div className="card-value pv-main">{fmt$(state.portfolioValue)}</div>
-          <div className={`card-sub ${returnPositive ? "pos" : "neg"}`}>
-            {fmtPct(state.totalReturn)} total return
+      {/* ── Zone 2: Main charts ── */}
+      <div className="charts-row">
+
+        {/* Left: Portfolio vs buy-and-hold */}
+        <div className="chart-panel">
+          <div className="chart-header">
+            <span className="chart-title">Portfolio vs Buy-and-Hold</span>
+            <span className="chart-meta">
+              <span><span className="legend-dot" style={{ background: "var(--green)" }} />agent</span>
+              <span><span className="legend-dot" style={{ background: "#f0b42966" }} />price</span>
+              <span style={{ color: returnPos ? "var(--green)" : "var(--red)" }}>
+                {fmtPct(state.totalReturn)}
+              </span>
+            </span>
           </div>
-          <div style={{ marginTop: 12 }}>
-            <Sparkline
-              data={state.portfolioHistory}
-              width={320} height={60}
-              color={returnPositive ? "#00ff9d" : "#ff4d6d"}
-              fillColor={returnPositive ? "rgba(0,255,157,0.07)" : "rgba(255,77,109,0.07)"}
-            />
-          </div>
+          <DualLineChart portfolio={state.portfolioHistory} price={state.priceHistory} />
         </div>
 
-        {/* ── Price card ── */}
-        <div className="card card-price">
-          <div className="card-label">{ticker} Price</div>
-          <div className="card-value">${state.price.toFixed(2)}</div>
-          <div style={{ marginTop: 12 }}>
-            <Sparkline
-              data={state.priceHistory}
-              width={220} height={50}
-              color="#f0b429"
-              fillColor="rgba(240,180,41,0.07)"
-            />
+        {/* Right: Training trend (loss + sharpe per rollout) */}
+        <div className="chart-panel">
+          <div className="chart-header">
+            <span className="chart-title">Training Trend</span>
+            <span className="chart-meta">
+              <span><span className="legend-dot" style={{ background: "var(--blue)" }} />loss</span>
+              <span><span className="legend-dot" style={{ background: "var(--green)" }} />sharpe</span>
+              <span style={{ color: "var(--muted)" }}>{rolloutCount} rollouts</span>
+            </span>
           </div>
+          <SharpeTrend sharpeHistory={effSharpe} lossHistory={effLoss} />
         </div>
 
-        {/* ── Metrics ── */}
-        <div className="card card-metrics">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-            <div className="card-label">Risk Metrics</div>
-            {state.currentEpTicker && (
-              <span style={{ fontSize: 9, fontFamily: "var(--mono)", color: "var(--purple)" }}>
-                ↻ {state.currentEpTicker}
-              </span>
-            )}
-          </div>
-          <div className="metrics-grid">
-            <div className="metric">
-              <span className="metric-label">Sharpe</span>
-              <span className={`metric-val ${state.sharpe >= 1 ? "pos" : state.sharpe < 0 ? "neg" : "neutral"}`}>
-                {state.sharpe.toFixed(2)}
-              </span>
-            </div>
-            <div className="metric">
-              <span className="metric-label">Sortino</span>
-              <span className={`metric-val ${state.sortino >= 1 ? "pos" : state.sortino < 0 ? "neg" : "neutral"}`}>
-                {state.sortino.toFixed(2)}
-              </span>
-            </div>
-            <div className="metric">
-              <span className="metric-label">Calmar</span>
-              <span className={`metric-val ${state.calmar >= 1 ? "pos" : state.calmar < 0 ? "neg" : "neutral"}`}>
-                {state.calmar.toFixed(2)}
-              </span>
-            </div>
-            <div className="metric">
-              <span className="metric-label">Max DD</span>
-              <span className="metric-val neg">{state.maxDrawdown.toFixed(1)}%</span>
-            </div>
-            <div className="metric">
-              <span className="metric-label">W/L Ratio</span>
-              <span className={`metric-val ${state.winLossRatio >= 1.5 ? "pos" : state.winLossRatio < 1 ? "neg" : "neutral"}`}>
-                {state.winLossRatio.toFixed(2)}
-              </span>
-            </div>
-            <div className="metric">
-              <span className="metric-label">Turnover</span>
-              <span className={`metric-val ${state.avgTurnover < 5 ? "pos" : state.avgTurnover > 20 ? "neg" : "neutral"}`}>
-                {state.avgTurnover.toFixed(1)}x
-              </span>
-            </div>
-            <div className="metric">
-              <span className="metric-label">Loss</span>
-              <span className="metric-val neutral">{state.loss.toFixed(4)}</span>
-            </div>
-            <div className="metric">
-              <span className="metric-label">Reward</span>
-              <span className={`metric-val ${state.reward >= 0 ? "pos" : "neg"}`}>
-                {state.reward.toFixed(5)}
-              </span>
-            </div>
-          </div>
-        </div>
+      </div>
 
-        {/* ── Agent position ── */}
-        <div className="card card-position">
-          <div className="card-label">Agent Position</div>
-          <PositionMeter value={state.position} />
-          <div style={{ marginTop: 14 }}>
-            <Sparkline
-              data={state.portfolioHistory.map((_, i) =>
-                i < (state as any).actionHistory?.length
-                  ? (state as any).actionHistory[i]
-                  : state.position
-              )}
-              width={220} height={40}
-              color="#a78bfa"
-              fillColor="rgba(167,139,250,0.08)"
-            />
-          </div>
-        </div>
-
-        {/* ── Loss chart ── */}
-        <div className="card card-loss">
-          <div className="card-label">Training Loss</div>
-          {state.lossHistory.length > 1 ? (
-            <Sparkline
-              data={state.lossHistory}
-              width={320} height={70}
-              color="#60a5fa"
-              fillColor="rgba(96,165,250,0.07)"
-            />
-          ) : (
-            <div className="empty-chart">waiting for updates…</div>
-          )}
-        </div>
-
-        {/* ── Trade log ── */}
-        <div className="card card-trades">
-          <div className="card-label">Trade Log</div>
-          <div className="trade-list">
-            {state.tradeLog.length === 0 && (
-              <div className="empty-chart">no trades yet</div>
-            )}
-            {state.tradeLog.map((t, i) => (
-              <div key={i} className={`trade-row trade-${t.action.toLowerCase()}`}>
-                <span className="trade-time">{t.time}</span>
-                <span className={`trade-action trade-badge-${t.action.toLowerCase()}`}>{t.action}</span>
-                <span className="trade-price">${t.price.toFixed(2)}</span>
-                <span className="trade-alloc">{(t.alloc * 100).toFixed(0)}%</span>
-                <span className={`trade-pnl ${t.pnl >= 0 ? "pos" : "neg"}`}>
-                  {t.pnl >= 0 ? "+" : ""}{t.pnl.toFixed(2)}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ── Training efficiency panel ── */}
-        <div className="card card-efficiency">
-          <EfficiencyPanel
-            effLoss={effLoss}
-            effSharpe={effSharpe}
-            effReturn={effReturn}
-            effWinRate={effWinRate}
-            effSteps={effSteps}
-            winRate={winRate}
-            stepsPerSec={stepsPerSec}
-            rolloutCount={rolloutCount}
+      {/* ── Position bar (slim) ── */}
+      <div style={{ flexShrink: 0, padding: "6px 20px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 12, background: "var(--surface)" }}>
+        <span style={{ fontFamily: "var(--mono)", fontSize: 9, color: "var(--muted-hi)", textTransform: "uppercase", letterSpacing: "0.1em", width: 64, flexShrink: 0 }}>Agent Pos</span>
+        <span style={{ fontFamily: "var(--mono)", fontSize: 9, color: "var(--muted)" }}>SELL</span>
+        <div style={{ flex: 1, position: "relative", height: 4, background: "var(--border)", borderRadius: 2, overflow: "hidden" }}>
+          <motion.div
+            style={{ position: "absolute", left: 0, top: 0, bottom: 0, borderRadius: 2, background: posColor }}
+            animate={{ width: `${posPct}%` }}
+            transition={{ type: "spring", stiffness: 60, damping: 15 }}
           />
+          <div style={{ position: "absolute", left: "50%", top: 0, bottom: 0, width: 1, background: "var(--border-hi)" }} />
         </div>
+        <span style={{ fontFamily: "var(--mono)", fontSize: 9, color: "var(--muted)" }}>BUY</span>
+        <motion.span
+          key={state.position}
+          style={{ fontFamily: "var(--mono)", fontSize: 11, color: posColor, width: 48, textAlign: "right" }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+        >
+          {state.position >= 0 ? "+" : ""}{(state.position * 100).toFixed(1)}%
+        </motion.span>
+        <span style={{ fontFamily: "var(--mono)", fontSize: 9, color: "var(--muted-hi)", marginLeft: 12 }}>
+          W/L {state.winLossRatio.toFixed(2)} · Turnover {state.avgTurnover.toFixed(1)}x · Calmar {state.calmar.toFixed(2)} · Loss {state.loss.toFixed(4)}
+        </span>
+      </div>
 
-        {/* ── Walk-forward panel ── */}
-        <div className="card card-walkforward">
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-            <div>
-              <div className="card-label">Generalization Analysis — Walk-Forward</div>
-              <div style={{ fontSize: 10, color: "var(--muted)", fontFamily: "var(--mono)", marginTop: 2 }}>
-                Gray = train Sharpe · Green/Red = test Sharpe (unseen data) · Orange dashed = buy-and-hold
-              </div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-              {wfWindows.length > 0 && (
-                <div style={{ display: "flex", gap: 20 }}>
-                  <div className="wf-stat">
-                    <span className="wf-stat-label">Avg Test Sharpe</span>
-                    <span className={`wf-stat-val ${wfSummary.avg_test_sharpe >= 0.5 ? "pos" : wfSummary.avg_test_sharpe < 0 ? "neg" : "neutral"}`}>
-                      {wfSummary.avg_test_sharpe >= 0 ? "+" : ""}{wfSummary.avg_test_sharpe.toFixed(3)}
-                    </span>
-                  </div>
-                  <div className="wf-stat">
-                    <span className="wf-stat-label">Gen. Gap</span>
-                    <span className={`wf-stat-val ${wfSummary.generalization_gap < 0.3 ? "pos" : "neg"}`}>
-                      {wfSummary.generalization_gap.toFixed(3)}
-                    </span>
-                  </div>
-                  <div className="wf-stat">
-                    <span className="wf-stat-label">Trend</span>
-                    <span className={`wf-stat-val ${wfSummary.trend_slope > 0.02 ? "pos" : wfSummary.trend_slope < -0.02 ? "neg" : "neutral"}`}>
-                      {wfSummary.trend_slope > 0.02 ? "IMPROVING ↑" : wfSummary.trend_slope < -0.02 ? "DECLINING ↓" : "STABLE →"}
-                    </span>
-                  </div>
-                </div>
-              )}
+      {/* ── Zone 3: Collapsible drawer ── */}
+      <div className="drawer">
+        <div className="drawer-toggle" onClick={() => setDrawerOpen((o) => !o)}>
+          <div className="drawer-toggle-left">
+            <span className="drawer-title">Analysis</span>
+            <div className="drawer-tabs" onClick={(e) => e.stopPropagation()}>
               <button
-                className={`btn ${wfRunning ? "btn-pause" : "btn-start"}`}
-                onClick={handleRunWalkForward}
-                disabled={wfRunning || state.isTraining}
-                style={{ fontSize: 10, padding: "5px 12px" }}
+                className={`drawer-tab ${drawerTab === "wf" ? "active" : ""}`}
+                onClick={() => { setDrawerTab("wf"); setDrawerOpen(true); }}
               >
-                {wfRunning ? "⏳ Analyzing…" : "⚡ Run Analysis"}
+                Walk-Forward
+              </button>
+              <button
+                className={`drawer-tab ${drawerTab === "trades" ? "active" : ""}`}
+                onClick={() => { setDrawerTab("trades"); setDrawerOpen(true); }}
+              >
+                Trade Log
               </button>
             </div>
           </div>
-          <WalkForwardChart windows={wfWindows} height={180} />
+          <span className={`drawer-chevron ${drawerOpen ? "open" : ""}`}>▲</span>
         </div>
 
-      </main>
+        <AnimatePresence initial={false}>
+          {drawerOpen && (
+            <motion.div
+              key="drawer-body"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 220, opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.25, ease: "easeInOut" }}
+              style={{ overflow: "hidden" }}
+            >
+              <div className="drawer-body">
 
-      {/* ── Status bar ── */}
-      <footer className="statusbar">
-        <span>PPO · ActorCritic · GAE-λ</span>
-        <span style={{ color: "var(--purple)", fontFamily: "var(--mono)", fontSize: 10 }}>
-          lifetime: {state.lifetimeSteps.toLocaleString()} steps
-        </span>
-        <span className={state.isTraining ? "status-training" : "status-idle"}>
-          {state.isTraining ? "● training" : "○ idle"}
-        </span>
-        <span>clip ε=0.2 · γ=0.99 · λ=0.95</span>
-      </footer>
+                {/* Left section */}
+                <div className="drawer-section" style={{ height: 220 }}>
+                  {drawerTab === "wf" ? (
+                    <>
+                      <div className="wf-stat-row">
+                        {wfWindows.length > 0 && (<>
+                          <div className="wf-stat">
+                            <span className="wf-stat-label">Avg Test Sharpe</span>
+                            <span className={`wf-stat-val ${wfSummary.avg_test_sharpe >= 0.5 ? "pos" : wfSummary.avg_test_sharpe < 0 ? "neg" : "neutral"}`}>
+                              {wfSummary.avg_test_sharpe >= 0 ? "+" : ""}{wfSummary.avg_test_sharpe.toFixed(3)}
+                            </span>
+                          </div>
+                          <div className="wf-stat">
+                            <span className="wf-stat-label">Gen. Gap</span>
+                            <span className={`wf-stat-val ${wfSummary.generalization_gap < 0.3 ? "pos" : "neg"}`}>
+                              {wfSummary.generalization_gap.toFixed(3)}
+                            </span>
+                          </div>
+                          <div className="wf-stat">
+                            <span className="wf-stat-label">Trend</span>
+                            <span className={`wf-stat-val ${wfSummary.trend_slope > 0.02 ? "pos" : wfSummary.trend_slope < -0.02 ? "neg" : "neutral"}`}>
+                              {wfSummary.trend_slope > 0.02 ? "↑ IMPROVING" : wfSummary.trend_slope < -0.02 ? "↓ DECLINING" : "→ STABLE"}
+                            </span>
+                          </div>
+                        </>)}
+                        <button
+                          className={`btn btn-sm wf-run-btn ${wfRunning ? "btn-pause" : "btn-start"}`}
+                          onClick={handleRunWalkForward}
+                          disabled={wfRunning || state.isTraining}
+                        >
+                          {wfRunning ? "⏳ Analyzing…" : "⚡ Run Analysis"}
+                        </button>
+                      </div>
+                      <div style={{ flex: 1, minHeight: 0 }}>
+                        <WalkForwardChart windows={wfWindows} height={148} />
+                      </div>
+                    </>
+                  ) : (
+                    <div className="trade-list">
+                      {state.tradeLog.length === 0 && (
+                        <div className="chart-empty">no trades yet</div>
+                      )}
+                      {[...state.tradeLog].reverse().map((t, i) => (
+                        <div key={i} className="trade-row">
+                          <span className="trade-time">{t.time}</span>
+                          <span className={`trade-badge ${t.action.toLowerCase()}`}>{t.action}</span>
+                          <span className="trade-price">${t.price.toFixed(2)}</span>
+                          <span className="trade-alloc">{(t.alloc * 100).toFixed(0)}%</span>
+                          <span className={`trade-pnl ${t.pnl >= 0 ? "pos" : "neg"}`}>
+                            {t.pnl >= 0 ? "+" : ""}{t.pnl.toFixed(2)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Right: mini-metrics */}
+                <div className="drawer-section" style={{ height: 220, gap: 10 }}>
+                  <span className="section-label">Episode Snapshot</span>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    {[
+                      ["Cash",    `$${state.cash.toFixed(0)}`,           "var(--text)"],
+                      ["Price",   `$${state.price.toFixed(2)}`,           "var(--yellow)"],
+                      ["Reward",  state.reward.toFixed(5),                state.reward >= 0 ? "var(--green)" : "var(--red)"],
+                      ["Calmar",  state.calmar.toFixed(2),                state.calmar >= 0.5 ? "var(--green)" : "var(--muted-hi)"],
+                      ["W/L",     state.winLossRatio.toFixed(2),          state.winLossRatio >= 1.5 ? "var(--green)" : "var(--muted-hi)"],
+                      ["Turnover",state.avgTurnover.toFixed(1) + "x",     state.avgTurnover < 5 ? "var(--green)" : "var(--red)"],
+                      ["Episode", state.episode.toFixed(0),               "var(--purple)"],
+                      ["Ticker",  state.currentEpTicker || "—",           "var(--purple)"],
+                    ].map(([label, val, color]) => (
+                      <div key={label} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                        <span style={{ fontFamily: "var(--mono)", fontSize: 9, color: "var(--muted-hi)", textTransform: "uppercase", letterSpacing: "0.08em" }}>{label}</span>
+                        <span style={{ fontFamily: "var(--mono)", fontSize: 13, fontWeight: 700, color }}>{val}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
     </div>
   );
 }
