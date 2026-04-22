@@ -20,6 +20,15 @@ export type TickData = {
   loss_history?: number[];
   price_history?: number[];
   is_training?: boolean;
+  win_rate?: number;
+  rollout_count?: number;
+  steps_per_sec?: number;
+  steps?: number;
+  sortino?: number;
+  calmar?: number;
+  win_loss_ratio?: number;
+  avg_turnover?: number;
+  current_ep_ticker?: string;
 };
 
 export type TradeEntry = {

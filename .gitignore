@@ -9,7 +9,7 @@ dist/
 build/
 .venv/
 venv/
-env/
+.env/
 
 # Checkpoints & data artifacts
 checkpoints/

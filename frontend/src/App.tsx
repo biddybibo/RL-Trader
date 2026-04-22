@@ -4,6 +4,7 @@ import type { TradeEntry } from "./hooks/useTraderWS";
 import { getStatus, startTraining, stopTraining, pauseTraining, getWalkForward, runWalkForward } from "./lib/api";
 import { Sparkline } from "./components/Sparkline";
 import { WalkForwardChart } from "./components/WalkForwardChart";
+import { EfficiencyPanel } from "./components/EfficiencyPanel";
 import type { WFWindow } from "./components/WalkForwardChart";
 import "./index.css";
 
@@ -19,8 +20,12 @@ interface AppState {
   sharesHeld: number;
   position: number;
   sharpe: number;
+  sortino: number;
+  calmar: number;
   maxDrawdown: number;
   totalReturn: number;
+  winLossRatio: number;
+  avgTurnover: number;
   price: number;
   reward: number;
   portfolioHistory: number[];
@@ -28,15 +33,17 @@ interface AppState {
   priceHistory: number[];
   tradeLog: TradeEntry[];
   lifetimeSteps: number;
+  currentEpTicker: string;
 }
 
 const DEFAULT_STATE: AppState = {
   isTraining: false, totalSteps: 0, totalStepsTarget: 500000,
   episode: 0, loss: 0, portfolioValue: 10000, cash: 10000,
-  sharesHeld: 0, position: 0, sharpe: 0, maxDrawdown: 0,
-  totalReturn: 0, price: 182, reward: 0,
+  sharesHeld: 0, position: 0, sharpe: 0, sortino: 0, calmar: 0,
+  maxDrawdown: 0, totalReturn: 0, winLossRatio: 0, avgTurnover: 0,
+  price: 182, reward: 0,
   portfolioHistory: [], lossHistory: [], priceHistory: [], tradeLog: [],
-  lifetimeSteps: 0,
+  lifetimeSteps: 0, currentEpTicker: "",
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────
@@ -80,6 +87,15 @@ export default function App() {
   const [wfWindows, setWfWindows] = useState<WFWindow[]>([]);
   const [wfSummary, setWfSummary] = useState({ avg_test_sharpe: 0, generalization_gap: 0, trend_slope: 0 });
   const [wfRunning, setWfRunning] = useState(false);
+  const [effLoss,    setEffLoss]    = useState<number[]>([]);
+  const [effSharpe,  setEffSharpe]  = useState<number[]>([]);
+  const [effReturn,  setEffReturn]  = useState<number[]>([]);
+  const [effWinRate, setEffWinRate] = useState<number[]>([]);
+  const [effSteps,   setEffSteps]   = useState<number[]>([]);
+  const [winRate,      setWinRate]      = useState(0);
+  const [stepsPerSec,  setStepsPerSec]  = useState(0);
+  const [rolloutCount, setRolloutCount] = useState(0);
+  const prevRolloutCount = useRef(0);
   const prevPos = useRef(0);
   const { connected, lastTick } = useTraderWS("ws://localhost:8000/ws");
 
@@ -93,15 +109,31 @@ export default function App() {
         totalStepsTarget: d.total_steps_target,
         episode:          d.episode,
         portfolioValue:   d.portfolio_value,
-        sharpe:           d.sharpe,
+        sharpe:           d.sharpe      ?? s.sharpe,
+        sortino:          d.sortino     ?? s.sortino,
+        calmar:           d.calmar      ?? s.calmar,
         maxDrawdown:      d.max_drawdown,
         totalReturn:      d.total_return,
+        winLossRatio:     d.win_loss_ratio ?? s.winLossRatio,
+        avgTurnover:      d.avg_turnover   ?? s.avgTurnover,
         portfolioHistory: d.portfolio_history || [],
         lossHistory:      d.loss_history || [],
         priceHistory:     d.price_history || [],
         tradeLog:         d.trade_log || [],
         lifetimeSteps:    d.lifetime_steps || 0,
+        currentEpTicker:  d.current_ep_ticker ?? "",
       }));
+      if (d.eff_loss?.length)     setEffLoss(d.eff_loss);
+      if (d.eff_sharpe?.length)   setEffSharpe(d.eff_sharpe);
+      if (d.eff_return?.length)   setEffReturn(d.eff_return);
+      if (d.eff_win_rate?.length) setEffWinRate(d.eff_win_rate);
+      if (d.eff_steps?.length)    setEffSteps(d.eff_steps);
+      if (d.win_rate !== undefined)      setWinRate(d.win_rate);
+      if (d.steps_per_sec !== undefined) setStepsPerSec(d.steps_per_sec);
+      if (d.rollout_count !== undefined) {
+        setRolloutCount(d.rollout_count);
+        prevRolloutCount.current = d.rollout_count;
+      }
     }).catch(() => {});
   }, []);
 
@@ -122,13 +154,29 @@ export default function App() {
     await runWalkForward(ticker, 20_000);
     // Poll until done
     const poll = setInterval(async () => {
-      const d = await getWalkForward(ticker);
+      const [d, s] = await Promise.all([
+        getWalkForward(ticker),
+        fetch("http://localhost:8000/api/walkforward/status/current").then(r => r.json()),
+      ]);
       if (d.windows?.length > 0) {
         setWfWindows(d.windows);
         setWfSummary({ avg_test_sharpe: d.avg_test_sharpe, generalization_gap: d.generalization_gap, trend_slope: d.trend_slope });
       }
-      const s = await fetch("http://localhost:8000/api/walkforward/status/current").then(r => r.json());
-      if (!s.running) { setWfRunning(false); clearInterval(poll); }
+      if (!s.running) {
+        clearInterval(poll);
+        setWfRunning(false);
+        if (s.error) {
+          alert(`Walk-forward failed:\n\n${s.error}`);
+          return;
+        }
+        // One final fetch in case the file was written after the parallel fetch above
+        getWalkForward(ticker).then((final) => {
+          if (final.windows?.length > 0) {
+            setWfWindows(final.windows);
+            setWfSummary({ avg_test_sharpe: final.avg_test_sharpe, generalization_gap: final.generalization_gap, trend_slope: final.trend_slope });
+          }
+        }).catch(() => {});
+      }
     }, 5000);
   }, [ticker]);
 
@@ -162,6 +210,26 @@ export default function App() {
       }
       prevPos.current = pos;
 
+      if (t.win_rate      !== undefined) setWinRate(t.win_rate);
+      if (t.steps_per_sec !== undefined) setStepsPerSec(t.steps_per_sec);
+      const rc = t.rollout_count;
+      if (rc !== undefined) {
+        setRolloutCount(rc);
+        if (rc > prevRolloutCount.current) {
+          prevRolloutCount.current = rc;
+          const loss       = t.loss;
+          const sharpe     = t.sharpe;
+          const ret        = t.total_return;
+          const winRate    = t.win_rate;
+          const step       = t.total_steps;
+          if (loss     !== undefined) setEffLoss(h     => [...h, loss]);
+          if (sharpe   !== undefined) setEffSharpe(h   => [...h, sharpe]);
+          if (ret      !== undefined) setEffReturn(h   => [...h, ret]);
+          if (winRate  !== undefined) setEffWinRate(h  => [...h, winRate]);
+          if (step     !== undefined) setEffSteps(h    => [...h, step]);
+        }
+      }
+
       setState((s) => ({
         ...s,
         isTraining:       t.is_training !== undefined ? t.is_training : s.isTraining,
@@ -174,10 +242,15 @@ export default function App() {
         sharesHeld:       t.shares_held ?? s.sharesHeld,
         position:         pos,
         sharpe:           t.sharpe ?? s.sharpe,
+        sortino:          t.sortino ?? s.sortino,
+        calmar:           t.calmar ?? s.calmar,
         maxDrawdown:      t.max_drawdown ?? s.maxDrawdown,
         totalReturn:      t.total_return ?? s.totalReturn,
+        winLossRatio:     t.win_loss_ratio ?? s.winLossRatio,
+        avgTurnover:      t.avg_turnover ?? s.avgTurnover,
         price:            t.price ?? s.price,
         reward:           t.reward ?? s.reward,
+        currentEpTicker:  t.current_ep_ticker ?? s.currentEpTicker,
         tradeLog:         t.trade_log ?? s.tradeLog,
         portfolioHistory: s.portfolioHistory.length === 0 && t.portfolio_value
           ? [t.portfolio_value]
@@ -305,7 +378,14 @@ export default function App() {
 
         {/* ── Metrics ── */}
         <div className="card card-metrics">
-          <div className="card-label">Key Metrics</div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <div className="card-label">Risk Metrics</div>
+            {state.currentEpTicker && (
+              <span style={{ fontSize: 9, fontFamily: "var(--mono)", color: "var(--purple)" }}>
+                ↻ {state.currentEpTicker}
+              </span>
+            )}
+          </div>
           <div className="metrics-grid">
             <div className="metric">
               <span className="metric-label">Sharpe</span>
@@ -314,16 +394,32 @@ export default function App() {
               </span>
             </div>
             <div className="metric">
+              <span className="metric-label">Sortino</span>
+              <span className={`metric-val ${state.sortino >= 1 ? "pos" : state.sortino < 0 ? "neg" : "neutral"}`}>
+                {state.sortino.toFixed(2)}
+              </span>
+            </div>
+            <div className="metric">
+              <span className="metric-label">Calmar</span>
+              <span className={`metric-val ${state.calmar >= 1 ? "pos" : state.calmar < 0 ? "neg" : "neutral"}`}>
+                {state.calmar.toFixed(2)}
+              </span>
+            </div>
+            <div className="metric">
               <span className="metric-label">Max DD</span>
               <span className="metric-val neg">{state.maxDrawdown.toFixed(1)}%</span>
             </div>
             <div className="metric">
-              <span className="metric-label">Cash</span>
-              <span className="metric-val">{fmt$(state.cash)}</span>
+              <span className="metric-label">W/L Ratio</span>
+              <span className={`metric-val ${state.winLossRatio >= 1.5 ? "pos" : state.winLossRatio < 1 ? "neg" : "neutral"}`}>
+                {state.winLossRatio.toFixed(2)}
+              </span>
             </div>
             <div className="metric">
-              <span className="metric-label">Shares</span>
-              <span className="metric-val">{state.sharesHeld.toFixed(3)}</span>
+              <span className="metric-label">Turnover</span>
+              <span className={`metric-val ${state.avgTurnover < 5 ? "pos" : state.avgTurnover > 20 ? "neg" : "neutral"}`}>
+                {state.avgTurnover.toFixed(1)}x
+              </span>
             </div>
             <div className="metric">
               <span className="metric-label">Loss</span>
@@ -390,6 +486,20 @@ export default function App() {
               </div>
             ))}
           </div>
+        </div>
+
+        {/* ── Training efficiency panel ── */}
+        <div className="card card-efficiency">
+          <EfficiencyPanel
+            effLoss={effLoss}
+            effSharpe={effSharpe}
+            effReturn={effReturn}
+            effWinRate={effWinRate}
+            effSteps={effSteps}
+            winRate={winRate}
+            stepsPerSec={stepsPerSec}
+            rolloutCount={rolloutCount}
+          />
         </div>
 
         {/* ── Walk-forward panel ── */}

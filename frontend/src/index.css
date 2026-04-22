@@ -126,7 +126,7 @@ html, body, #root { height: 100%; background: var(--bg); color: var(--text); fon
 .grid {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  grid-template-rows: auto auto auto;
+  grid-template-rows: auto auto auto auto;
   gap: 1px;
   background: var(--border);
   flex: 1;
@@ -144,7 +144,8 @@ html, body, #root { height: 100%; background: var(--bg); color: var(--text); fon
 .card-position   { grid-column: 1;     grid-row: 2; }
 .card-loss       { grid-column: 2;     grid-row: 2; }
 .card-trades     { grid-column: 3;     grid-row: 2; }
-.card-walkforward{ grid-column: 1 / 4; grid-row: 3; }
+.card-efficiency { grid-column: 1 / 4; grid-row: 3; }
+.card-walkforward{ grid-column: 1 / 4; grid-row: 4; }
 
 /* ── Walk-forward stats ── */
 .wf-stat       { display: flex; flex-direction: column; gap: 2px; }
@@ -182,8 +183,8 @@ html, body, #root { height: 100%; background: var(--bg); color: var(--text); fon
 
 /* ── Metrics grid ── */
 .metrics-grid {
-  display: grid; grid-template-columns: 1fr 1fr;
-  gap: 10px 16px; margin-top: 6px;
+  display: grid; grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 10px 12px; margin-top: 6px;
 }
 .metric { display: flex; flex-direction: column; gap: 2px; }
 .metric-label { font-size: 10px; color: var(--muted); font-family: var(--mono); text-transform: uppercase; }
