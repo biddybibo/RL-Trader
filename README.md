@@ -86,10 +86,12 @@ rl-trader/
 │   └── trading_env.py        Custom Gymnasium environment (17-dim obs, Sortino reward)
 ├── frontend/
 │   └── src/
-│       ├── App.tsx            Main dashboard layout
+│       ├── App.tsx            Main dashboard layout (3-zone Framer Motion)
 │       ├── components/
-│       │   ├── Sparkline.tsx       Canvas sparkline charts
-│       │   ├── EfficiencyPanel.tsx Training efficiency 4-chart panel
+│       │   ├── StatCard.tsx        Spring-animated stat cell
+│       │   ├── DualLineChart.tsx   Portfolio vs buy-and-hold canvas chart
+│       │   ├── SharpeTrend.tsx     Loss + Sharpe per-rollout canvas charts
+│       │   ├── Sparkline.tsx       Generic canvas sparkline
 │       │   └── WalkForwardChart.tsx Walk-forward bar chart
 │       ├── hooks/
 │       │   └── useTraderWS.ts  WebSocket hook with auto-reconnect
@@ -208,18 +210,35 @@ Results are saved to `checkpoints/AAPL_walkforward.json` and visualized in the d
 
 ---
 
-## Dashboard Panels
+## Dashboard Layout
 
-| Panel | What it shows |
+Built with **Framer Motion** for smooth spring-animated number transitions and panel reveals.
+
+### Zone 1 — Stats Rail
+Eight animated live metrics across the top:
+
+| Stat | Description |
 |---|---|
-| **Portfolio Value** | Agent's simulated account from $10,000 start |
-| **Price** | Real closing prices from current training ticker |
-| **Risk Metrics** | Sharpe, Sortino, Calmar, Max DD, W/L Ratio, Turnover, Loss, Reward |
-| **Agent Position** | Current allocation bar: SELL ← HOLD → BUY |
-| **Training Loss** | PPO loss sparkline over recent steps |
-| **Trade Log** | BUY/SELL/HOLD decisions with price, allocation, PnL |
-| **Training Efficiency** | Per-rollout charts: Loss, Sharpe, Return%, Win Rate — full training curve |
-| **Walk-Forward Analysis** | Generalization bar chart across 12 expanding windows |
+| **Steps** | Training steps completed / total target |
+| **Episode** | Current episode number + active ticker |
+| **Portfolio** | Current value (spring-animated) + total return % |
+| **Sharpe** | Risk-adjusted return (green ≥ 1.0) |
+| **Sortino** | Downside-only risk ratio (green ≥ 1.5) |
+| **Max DD** | Peak-to-trough drawdown |
+| **Win Rate** | Fraction of profitable trades + rollout count |
+| **Steps/sec** | Training throughput + lifetime steps |
+
+### Zone 2 — Charts (side by side)
+- **Left (3fr)**: Portfolio vs Buy-and-Hold — canvas dual-line chart, both series normalised to the same start value so relative performance is immediately visible
+- **Right (2fr)**: Training Trend — stacked Loss/rollout + Sharpe/rollout charts, updated every PPO rollout
+
+### Position Bar
+Slim animated bar between charts and drawer showing current agent allocation (SELL ↔ HOLD ↔ BUY) with spring physics.
+
+### Zone 3 — Collapsible Drawer
+Click to expand; toggle between two tabs:
+- **Walk-Forward** — bar chart + Avg Test Sharpe / Gen Gap / Trend summary + Run Analysis button
+- **Trade Log** — BUY/SELL/HOLD decisions with price, allocation, PnL (newest first)
 
 ### Risk Metrics explained
 
