@@ -1,6 +1,35 @@
 # RL Trader
 
-A reinforcement learning stock trading agent trained with **Proximal Policy Optimization (PPO)** and an **LSTM ActorCritic** network. The agent trains across a basket of 7 tickers simultaneously, observes 17 market + macro features, and uses a Sortino-shaped reward to optimize risk-adjusted returns — with a real-time React dashboard to watch it learn.
+A reinforcement learning stock trading agent trained with **Proximal Policy Optimization (PPO)** and an **LSTM ActorCritic** network. The agent trains across a basket of 7 tickers simultaneously, observes 17 market + macro features, and is evaluated honestly on years and stocks it never saw — with a real-time training dashboard and a public web showcase that replays and explains every decision.
+
+**Live showcase:** https://rl-trader-sigma.vercel.app
+
+---
+
+## Results, honestly
+
+Held-out evaluation on 2023–24, 10 stocks never used in training (JPM, XOM, KO, UNH, HD, PG, CAT, DIS, WMT, INTC), averaged over 5 seeds. Training used 2010–2020; the checkpoint was chosen on 2021–22.
+
+| Strategy | Sharpe | Worst drawdown | 2-yr return |
+|---|---|---|---|
+| Agent (mean-variance reward, κ=5) | 0.56 ± 0.58 | −10% | +3% |
+| Buy & hold | 0.71 | −22% | +30% |
+| SMA 50/200 crossover | 0.37 | −23% | +17% |
+
+**The agent does not beat buy & hold out of sample.** It reliably cuts drawdowns, but gives up most of the return. 20 seeds across three reward designs agree; validation Sharpe peaks early in training and then decays while training Sharpe keeps rising, i.e. it overfits 2010–2020. The scorecards are in `results/`.
+
+## Pipeline
+
+```bash
+pytest                                              # look-ahead, accounting, recurrent replay, checkpoints
+python train.py --steps 1000000 --reward mv --risk-aversion 5 --train-end 2020-12-31 --run mv5_s1 --seed 1 --fresh
+python evaluate.py --model checkpoints/mv5_s{1,2,3,4,5}_best.pt --out results/scorecard.json
+python export.py --model checkpoints/mv5_s3_best.pt --scorecard results/score_mv5.json --replay-run mv5_s3 \
+                 --replay-start 2022-01-01 --replay-end 2022-12-31   # -> web/public/data/
+cd web && npm install && npm run dev                # showcase site (Vite + React)
+```
+
+`train.py` keeps `{run}_best.pt`, the checkpoint with the best Sharpe on the validation window (2021–22 by default). `export.py` writes per-ticker daily traces (allocation, equity, integrated-gradient attributions, 2-D LSTM memory projection), checkpoint replays and `model.onnx`, which the site runs in the browser with onnxruntime-web.
 
 ---
 
@@ -11,7 +40,7 @@ The agent starts with $10,000 and decides every trading day what percentage of i
 Unlike a simple rule-based bot, this agent:
 - **Remembers** market context across days via an LSTM hidden state
 - **Trains on 7 tickers simultaneously** — learns market structure, not ticker quirks
-- **Optimizes risk-adjusted returns** — Sortino-shaped reward penalizes downside volatility and drawdowns
+- **Optimizes risk-adjusted returns** — reward modes: drawdown-penalised (`level`, `delta`) or mean-variance (`mv`: log return − ½κ·log return²)
 - **Sees macro context** — VIX and 10Y yield tell the agent what kind of market it's in
 - **Compounds intelligence** — each session resumes from the last checkpoint
 
@@ -182,9 +211,11 @@ python train.py --steps 500000 --ckpt-dir checkpoints
 
 ```
 checkpoints/
-  multi_latest.pt     ← most recent multi-asset weights
-  multi_meta.json     ← lifetime step count + timestamp
-  multi_50000.pt      ← milestone snapshots every 50k steps
+  {run}_latest.pt     ← most recent weights (model + optimiser + config)
+  {run}_best.pt       ← best validation-Sharpe checkpoint
+  {run}_val.json      ← validation history
+  {run}_meta.json     ← lifetime step count + train config
+  {run}_50000.pt      ← milestone snapshots every 50k steps
   AAPL_walkforward.json  ← walk-forward analysis results
 ```
 
@@ -259,7 +290,7 @@ Click to expand; toggle between two tabs:
 python evaluate.py --model checkpoints/multi_latest.pt
 ```
 
-Runs the agent on 2023–2024 held-out data and compares against buy-and-hold.
+Runs the agent deterministically on 2023–2024 for the training basket and 10 held-out tickers, against buy & hold, an SMA 50/200 crossover and random AR(1) agents (percentile). Pass several `--model` files to aggregate seeds.
 
 ---
 
@@ -275,6 +306,7 @@ numpy>=1.24.0
 pandas>=2.0.0
 yfinance>=0.2.36
 matplotlib>=3.7.0
+onnx, onnxruntime, pytest
 fastapi>=0.111.0
 uvicorn[standard]>=0.29.0
 ```

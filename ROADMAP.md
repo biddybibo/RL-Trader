@@ -30,7 +30,15 @@ generalize. It would likely struggle on a stock it has never seen.
 ---
 
 ## Phase 2 — Generalization & Robustness
-**Status: NOT STARTED**
+**Status: ATTEMPTED (Nov 2026) — success criterion not met**
+
+Done: VIX + 10Y yield features, fixed recurrent PPO, random one-year episodes,
+reward variants (drawdown level / delta / mean-variance), validation-based
+checkpoint selection, 20-seed held-out evaluation, web showcase.
+Result: held-out Sharpe 0.56 ± 0.58 vs buy & hold 0.71; drawdowns roughly halved.
+The policy overfits 2010–2020 (validation Sharpe peaks early, then decays).
+Next levers: smaller net / dropout, fewer and less noisy inputs (drop calendar
+features), 20+ tickers, early stopping on validation, ensembling seeds.
 **Estimated training: 5M–10M steps per ticker**
 
 ### Goals
@@ -53,6 +61,19 @@ generalize. It would likely struggle on a stock it has never seen.
 ### Success criteria
 Agent achieves Sharpe > 0.8 on at least 5 out of 10 held-out tickers
 it was NOT trained on.
+
+---
+
+## Phase 2.5 — Live Forward Test ("Live desk")
+**Status: PLANNED**
+**The only test that can't be overfit: decisions published before the outcome is known.**
+
+- [ ] Nightly job after US close: fetch latest data, run the frozen agent on a
+      watch-list, publish tomorrow's allocation + attributions (static JSON)
+- [ ] Append-only, timestamped ledger of every published decision (git history = audit trail)
+- [ ] Forward-test track record vs buy & hold, from day one of publishing
+- [ ] Frozen agent vs continually retrained agent (monthly walk-forward), side by side
+- [ ] Optional: mirror allocations into an Alpaca paper account (feeds Phase 4)
 
 ---
 
@@ -163,7 +184,12 @@ Markets change. Models drift. Regimes shift. Human oversight is required.
 
 ---
 
-## Current Stats (as of April 2026)
+## Current Stats (as of November 2026)
+
+See `results/` for scorecards. Exported model: `checkpoints/mv5_s3_best.pt`
+(1M-step run, best validation checkpoint).
+
+### Earlier stats (April 2026)
 
 | Ticker | Lifetime Steps | Status |
 |--------|---------------|--------|
