@@ -1,7 +1,6 @@
 import asyncio
 import json as json_lib
 import os
-import random
 import threading
 import time
 from collections import deque
@@ -14,9 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 # Tickers the agent trains on simultaneously (multi-asset generalisation)
-TRAIN_BASKET = ["AAPL", "MSFT", "GOOGL", "TSLA", "SPY", "NVDA", "AMZN"]
-TRAIN_START  = "2010-01-01"
-TRAIN_END    = "2022-12-31"
+from trainer import TRAIN_BASKET, TRAIN_START, TRAIN_END
 
 
 # ── Shared agent state ────────────────────────────────────────────────
@@ -58,214 +55,105 @@ class AgentState:
         self.win_loss_ratio          = 0.0
         self.avg_turnover            = 0.0
         self.current_ep_ticker       = ""
+        self.is_paused               = False
+        self.bnh_sharpe              = 0.0
+        self.train_stats: dict       = {}
+        self._live_price             = 0.0
         self._lock                   = threading.Lock()
 
 agent_state = AgentState()
 _training_thread: threading.Thread | None = None
 
 
-# ── Helpers ───────────────────────────────────────────────────────────
+# ── Training (runs in a background thread via the shared Trainer) ─────
 
-def _save_meta(path: str, lifetime_steps: int, ticker: str):
-    import json
-    with open(path, "w") as f:
-        json.dump({"lifetime_steps": lifetime_steps, "ticker": ticker, "updated": time.strftime("%Y-%m-%d %H:%M:%S")}, f)
+_stop_event = threading.Event()
+_run_event = threading.Event()   # cleared = paused
 
 
-def _load_lifetime_steps(ticker: str) -> int:
-    import json
-    meta_path = f"checkpoints/{ticker}_meta.json"
+def _load_lifetime_steps(run: str = "multi") -> int:
+    meta_path = f"checkpoints/{run}_meta.json"
     if os.path.exists(meta_path):
         with open(meta_path) as f:
-            return json.load(f).get("lifetime_steps", 0)
+            return json_lib.load(f).get("lifetime_steps", 0)
     return 0
 
 
-# ── Real PPO training (runs in background thread) ─────────────────────
+def _on_step(tr, step, env, ticker, action, reward):
+    s = agent_state
+    s.total_steps = step
+    s.portfolio_value = round(env.portfolio_value, 2)
+    s.cash = round(env.cash, 2)
+    s.shares_held = env.shares
+    s.current_position = round(float(env.position), 3)
+    s.current_ep_ticker = ticker
+    s._live_price = float(env.close[env.t])
+    s.reward_history.append(round(float(reward), 5))
+    if len(env.allocations) >= 2:
+        delta = env.allocations[-1] - env.allocations[-2]
+        if abs(delta) >= 0.25:
+            s.trade_log.appendleft({
+                "time": str(env.dates[env.t - 1].date()), "ticker": ticker,
+                "action": "BUY" if delta > 0 else "SELL",
+                "price": round(float(env.close[env.t - 1]), 2),
+                "alloc": round(env.allocations[-1], 2),
+                "pnl": round(float(env.values[-1] - env.values[-2]), 2),
+            })
 
-def _compute_metrics(pv_arr: np.ndarray):
-    """Return (sharpe, sortino, calmar, max_dd, total_ret) from portfolio value array."""
-    if len(pv_arr) < 10:
-        return 0.0, 0.0, 0.0, 0.0, 0.0
-    rets     = np.diff(pv_arr) / (pv_arr[:-1] + 1e-8)
-    mean_r   = rets.mean()
-    std_r    = rets.std() + 1e-9
-    downside = rets[rets < 0]
-    down_std = downside.std() + 1e-9 if len(downside) > 1 else std_r
 
-    sharpe   = float(mean_r / std_r * np.sqrt(252))
-    sortino  = float(mean_r / down_std * np.sqrt(252))
-    peak     = np.maximum.accumulate(pv_arr)
-    max_dd   = float(((pv_arr - peak) / (peak + 1e-8)).min() * 100)
-    total_r  = float((pv_arr[-1] / pv_arr[0] - 1) * 100)
-    calmar   = total_r / (abs(max_dd) + 1e-8)
-    return round(sharpe, 2), round(sortino, 2), round(calmar, 2), round(max_dd, 2), round(total_r, 2)
+def _on_episode(tr, summary):
+    s = agent_state
+    s.episode += 1
+    env = tr.envs[summary["ticker"]]
+    # Chart = the last completed episode, agent vs buy-and-hold on the same days
+    s.portfolio_history.clear(); s.portfolio_history.extend(round(v, 2) for v in env.values[-300:])
+    s._price_history.clear(); s._price_history.extend(round(float(p), 2) for p in env.episode_prices()[-300:])
+    s.action_history.clear(); s.action_history.extend(round(a, 3) for a in env.allocations[-300:])
+    recent = tr.episodes[-20:]
+    mean = lambda k: float(np.mean([e[k] for e in recent]))
+    s.sharpe_ratio = round(mean("sharpe"), 2)
+    s.sortino_ratio = round(mean("sortino"), 2)
+    s.calmar_ratio = round(mean("calmar"), 2)
+    s.max_drawdown = round(mean("max_drawdown") * 100, 2)
+    s.total_return = round(mean("total_return") * 100, 2)
+    s.avg_turnover = round(mean("turnover"), 2)
+    s.win_rate = round(float(np.mean([e["sharpe"] > e["bnh_sharpe"] for e in recent])) * 100, 1)  # % episodes beating B&H
+    s.bnh_sharpe = round(mean("bnh_sharpe"), 2)
+
+
+def _on_rollout(tr, step, stats):
+    s = agent_state
+    s.current_loss = round(stats["loss"], 4)
+    s.loss_history.append(s.current_loss)
+    s.train_stats = stats
+    s.rollout_count += 1
+    rw = np.array(list(s.reward_history))
+    wins, losses = rw[rw > 0], rw[rw < 0]
+    s.win_loss_ratio = round(float(wins.mean()) / (float(np.abs(losses).mean()) + 1e-9), 2) if len(wins) and len(losses) else 0.0
+    s.eff_loss.append(s.current_loss)
+    s.eff_sharpe.append(s.sharpe_ratio)
+    s.eff_return.append(s.total_return)
+    s.eff_win_rate.append(s.win_rate)
+    s.eff_steps.append(step)
 
 
 def _run_ppo_training(s: AgentState):
-    import json
     import torch
-    from data.fetch import fetch
-    from env.trading_env import TradingEnv
-    from agent.ppo import PPOAgent
+    from trainer import Hooks, TrainConfig, Trainer, load_basket
 
-    # Pin PyTorch to 1 thread — avoids core contention with FastAPI's thread pool
-    torch.set_num_threads(1)
-
-    # ── Pre-load entire multi-asset basket ───────────────────────────
-    print("[train] Loading multi-asset basket...")
-    ticker_data: dict[str, object] = {}
-    for t in TRAIN_BASKET:
-        try:
-            ticker_data[t] = fetch(t, TRAIN_START, TRAIN_END)
-            print(f"[train]   {t}: {len(ticker_data[t])} days")
-        except Exception as e:
-            print(f"[train]   {t}: skipped ({e})")
-
-    if not ticker_data:
-        print("[train] No data loaded — aborting")
+    torch.set_num_threads(1)  # avoid contention with FastAPI's thread pool
+    try:
+        data = load_basket(TRAIN_BASKET, TRAIN_START, TRAIN_END)
+        trainer = Trainer(data, TrainConfig(total_steps=s.total_steps_target), "checkpoints", "multi",
+                          hooks=Hooks(on_step=_on_step, on_episode=_on_episode, on_rollout=_on_rollout))
+        out = trainer.run(stop_event=_stop_event, run_event=_run_event)
+        print(f"[train] done: {out['steps']:,} steps, lifetime {out['lifetime_steps']:,}")
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        print(f"[train] failed: {e}")
+    finally:
         s.is_training = False
-        return
-
-    # ── Init agent from any env ───────────────────────────────────────
-    sample_df  = next(iter(ticker_data.values()))
-    sample_env = TradingEnv(sample_df)
-    obs_dim    = sample_env.observation_space.shape[0]
-    act_dim    = sample_env.action_space.shape[0]
-    agent      = PPOAgent(obs_dim=obs_dim, act_dim=act_dim, rollout_steps=2048)
-
-    os.makedirs("checkpoints", exist_ok=True)
-    ckpt_path  = "checkpoints/multi_latest.pt"
-    meta_path  = "checkpoints/multi_meta.json"
-    lifetime_steps = 0
-
-    if os.path.exists(ckpt_path):
-        try:
-            agent.load(ckpt_path)
-            if os.path.exists(meta_path):
-                with open(meta_path) as f:
-                    lifetime_steps = json.load(f).get("lifetime_steps", 0)
-            print(f"[train] Resumed multi-asset ({lifetime_steps:,} lifetime steps)")
-        except Exception:
-            print("[train] Checkpoint incompatible, starting fresh")
-
-    # ── First episode setup ───────────────────────────────────────────
-    def _new_env():
-        t  = random.choice(list(ticker_data.keys()))
-        s.current_ep_ticker = t
-        return TradingEnv(ticker_data[t]), t
-
-    env, cur_ticker = _new_env()
-    obs, _   = env.reset(seed=42)
-    hidden   = agent.init_hidden()
-    next_ckpt = 50_000
-    ep_turnover_acc: list[float] = []
-
-    # Pre-cache df lengths to avoid recomputing min() inside the hot loop
-    df_last_idx: dict[str, int] = {t: len(df) - 1 for t, df in ticker_data.items()}
-    cur_df_last = df_last_idx[cur_ticker]
-
-    # Batch state writes every N steps — broadcast only reads 10×/sec
-    _STATE_WRITE_EVERY = 10
-    _local_pv:    float = 10_000.0
-    _local_cash:  float = 10_000.0
-    _local_alloc: float = 0.0
-    _local_rew:   float = 0.0
-    _local_price: float = 0.0
-
-    for step in range(1, s.total_steps_target + 1):
-        if not s.is_training:
-            break
-
-        action, log_prob, value, hidden = agent.select_action(obs, hidden)
-        next_obs, reward, terminated, truncated, _ = env.step(action)
-        done = terminated or truncated
-
-        hx = hidden[0].squeeze().cpu().numpy()
-        cx = hidden[1].squeeze().cpu().numpy()
-        agent.buffer.add(obs, action, reward, float(done), value, log_prob, hx, cx)
-        obs   = next_obs
-        alloc = float(np.clip(action[0], 0.0, 1.0))
-
-        # Keep locals hot — deques and shared state only updated every N steps
-        _local_pv    = env.portfolio_value
-        _local_cash  = env.cash
-        _local_alloc = alloc
-        _local_rew   = float(reward)
-        price_idx    = min(env.t, cur_df_last)
-        _local_price = float(ticker_data[cur_ticker].iloc[price_idx]["close"])
-
-        if step % _STATE_WRITE_EVERY == 0:
-            s.total_steps      = step
-            s.portfolio_value  = round(_local_pv, 2)
-            s.cash             = round(_local_cash, 2)
-            s.shares_held      = env.shares
-            s.current_position = _local_alloc
-            s.portfolio_history.append(round(_local_pv, 2))
-            s.action_history.append(round(_local_alloc, 3))
-            s.reward_history.append(round(_local_rew, 5))
-            s._price_history.append(round(_local_price, 2))
-
-        if done:
-            s.episode += 1
-            ep_turnover_acc.append(env.episode_turnover)
-            env, cur_ticker = _new_env()
-            obs, _ = env.reset()
-            hidden = agent.init_hidden()
-            cur_df_last = df_last_idx[cur_ticker]
-
-        # ── PPO update ────────────────────────────────────────────────
-        if step % agent.rollout_steps == 0:
-            _, _, last_value, _ = agent.select_action(obs, hidden)
-            agent.update(last_value)
-            s.current_loss = round(agent.last_loss, 4)
-            s.loss_history.append(s.current_loss)
-
-            pv_arr = np.array(list(s.portfolio_history))
-            sharpe, sortino, calmar, max_dd, total_r = _compute_metrics(pv_arr)
-            s.sharpe_ratio  = sharpe
-            s.sortino_ratio = sortino
-            s.calmar_ratio  = calmar
-            s.max_drawdown  = max_dd
-            s.total_return  = total_r
-
-            rw_arr   = np.array(list(s.reward_history))
-            wins_arr = rw_arr[rw_arr > 0]
-            loss_arr = rw_arr[rw_arr < 0]
-            s.win_rate       = round(len(wins_arr) / max(len(rw_arr), 1) * 100, 1)
-            avg_win  = float(wins_arr.mean())       if len(wins_arr) else 0.0
-            avg_loss = float(np.abs(loss_arr).mean()) if len(loss_arr) else 1e-8
-            s.win_loss_ratio = round(avg_win / (avg_loss + 1e-9), 2)
-
-            if ep_turnover_acc:
-                s.avg_turnover = round(float(np.mean(ep_turnover_acc[-20:])), 2)
-
-            s.rollout_count += 1
-            s.eff_loss.append(s.current_loss)
-            s.eff_sharpe.append(s.sharpe_ratio)
-            s.eff_return.append(s.total_return)
-            s.eff_win_rate.append(s.win_rate)
-            s.eff_steps.append(step)
-
-            action_type = "BUY" if alloc > 0.6 else ("SELL" if alloc < 0.2 else "HOLD")
-            s.trade_log.appendleft({
-                "time":   time.strftime("%H:%M:%S"),
-                "action": action_type,
-                "price":  round(float(ticker_data[cur_ticker].iloc[price_idx]["close"]), 2),
-                "alloc":  round(alloc, 2),
-                "pnl":    round(float(reward * 10_000), 2),
-            })
-
-        if step >= next_ckpt:
-            agent.save(ckpt_path)
-            _save_meta(meta_path, lifetime_steps + step, "multi")
-            print(f"[train] checkpoint @ {lifetime_steps + step:,} steps")
-            next_ckpt += 50_000
-
-    agent.save(ckpt_path)
-    _save_meta(meta_path, lifetime_steps + s.total_steps_target, "multi")
-    print(f"[train] done — lifetime {lifetime_steps + s.total_steps_target:,} steps")
-    s.is_training = False
+        s.is_paused = False
 
 
 # ── WebSocket manager ─────────────────────────────────────────────────
@@ -332,7 +220,7 @@ async def broadcast_loop():
                 "total_return":       s.total_return,
                 "win_loss_ratio":     s.win_loss_ratio,
                 "avg_turnover":       s.avg_turnover,
-                "price":              s._price_history[-1] if s._price_history else 182.0,
+                "price":              round(s._live_price, 2),
                 "reward":             s.reward_history[-1] if s.reward_history else 0.0,
                 "trade_log":          list(s.trade_log)[:10],
                 "is_training":        s.is_training,
@@ -340,6 +228,9 @@ async def broadcast_loop():
                 "rollout_count":      s.rollout_count,
                 "steps_per_sec":      s.steps_per_sec,
                 "current_ep_ticker":  s.current_ep_ticker,
+                "is_paused":          s.is_paused,
+                "bnh_sharpe":         s.bnh_sharpe,
+                "train_stats":        s.train_stats,
             })
         elif not agent_state.is_training and manager.active:
             await manager.broadcast({"type": "training_complete", "steps": agent_state.total_steps})
@@ -388,7 +279,10 @@ def get_status():
         "loss_history":       list(s.loss_history),
         "price_history":      list(s._price_history),
         "trade_log":          list(s.trade_log),
-        "lifetime_steps":     _load_lifetime_steps(s.ticker),
+        "lifetime_steps":     _load_lifetime_steps(),
+        "is_paused":          s.is_paused,
+        "bnh_sharpe":         s.bnh_sharpe,
+        "train_stats":        s.train_stats,
         "eff_loss":           list(s.eff_loss),
         "eff_sharpe":         list(s.eff_sharpe),
         "eff_return":         list(s.eff_return),
@@ -414,7 +308,7 @@ class TrainConfig(BaseModel):
 def start_training(config: TrainConfig):
     global _training_thread
     s = agent_state
-    if s.is_training:
+    if s.is_training or (_training_thread and _training_thread.is_alive()):
         return {"ok": False, "message": "Already training"}
 
     s.ticker             = config.ticker
@@ -449,6 +343,9 @@ def start_training(config: TrainConfig):
     s.avg_turnover       = 0.0
     s.current_ep_ticker  = ""
     s.is_training        = True
+    s.is_paused          = False
+    _stop_event.clear()
+    _run_event.set()
 
     _training_thread = threading.Thread(target=_run_ppo_training, args=(s,), daemon=True)
     _training_thread.start()
@@ -457,14 +354,21 @@ def start_training(config: TrainConfig):
 
 @app.post("/api/train/stop")
 def stop_training():
-    agent_state.is_training = False
+    _stop_event.set()
+    _run_event.set()  # unblock if paused so the thread can save and exit
     return {"ok": True}
 
 
 @app.post("/api/train/pause")
 def pause_training():
-    agent_state.is_training = not agent_state.is_training
-    return {"ok": True, "is_training": agent_state.is_training}
+    s = agent_state
+    if not s.is_training:
+        return {"ok": False, "message": "Not training"}
+    if _run_event.is_set():
+        _run_event.clear(); s.is_paused = True
+    else:
+        _run_event.set(); s.is_paused = False
+    return {"ok": True, "is_training": s.is_training, "is_paused": s.is_paused}
 
 
 @app.get("/api/history")

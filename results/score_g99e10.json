@@ -1,0 +1,736 @@
+{
+  "period": [
+    "2023-01-01",
+    "2024-12-31"
+  ],
+  "summary": {
+    "held_out": {
+      "agent": {
+        "sharpe": {
+          "mean": 0.7139,
+          "std": 0.6259
+        },
+        "max_drawdown": {
+          "mean": -0.1732,
+          "std": 0.1261
+        },
+        "total_return": {
+          "mean": 0.2082,
+          "std": 0.2324
+        }
+      },
+      "buy_and_hold": {
+        "sharpe": {
+          "mean": 0.7115,
+          "std": 0.6269
+        },
+        "max_drawdown": {
+          "mean": -0.2249,
+          "std": 0.1435
+        },
+        "total_return": {
+          "mean": 0.3025,
+          "std": 0.3604
+        }
+      },
+      "sma_50_200": {
+        "sharpe": {
+          "mean": 0.3673,
+          "std": 0.7949
+        },
+        "max_drawdown": {
+          "mean": -0.2264,
+          "std": 0.0938
+        },
+        "total_return": {
+          "mean": 0.1739,
+          "std": 0.3909
+        }
+      },
+      "agent_beats_bnh_sharpe_frac": 0.5
+    },
+    "train_tickers": {
+      "agent": {
+        "sharpe": {
+          "mean": 1.7207,
+          "std": 0.3475
+        },
+        "max_drawdown": {
+          "mean": -0.1775,
+          "std": 0.1064
+        },
+        "total_return": {
+          "mean": 1.3816,
+          "std": 1.342
+        }
+      },
+      "buy_and_hold": {
+        "sharpe": {
+          "mean": 1.7286,
+          "std": 0.3516
+        },
+        "max_drawdown": {
+          "mean": -0.2321,
+          "std": 0.126
+        },
+        "total_return": {
+          "mean": 2.3151,
+          "std": 2.5644
+        }
+      },
+      "sma_50_200": {
+        "sharpe": {
+          "mean": 1.2673,
+          "std": 0.5203
+        },
+        "max_drawdown": {
+          "mean": -0.224,
+          "std": 0.1123
+        },
+        "total_return": {
+          "mean": 1.301,
+          "std": 1.9149
+        }
+      },
+      "agent_beats_bnh_sharpe_frac": 0.429
+    }
+  },
+  "models": [
+    {
+      "model": "checkpoints/g99e10_latest.pt",
+      "lifetime_steps": 200000,
+      "rows": [
+        {
+          "ticker": "AAPL",
+          "start": "2023-01-03",
+          "end": "2024-12-31",
+          "agent": {
+            "total_return": 0.64513,
+            "cagr": 0.28454,
+            "sharpe": 1.7403,
+            "sortino": 2.7035,
+            "max_drawdown": -0.11699,
+            "calmar": 2.4323,
+            "avg_exposure": 0.7032,
+            "turnover": 2.1451
+          },
+          "buy_and_hold": {
+            "total_return": 1.02329,
+            "cagr": 0.42543,
+            "sharpe": 1.7691,
+            "sortino": 2.7683,
+            "max_drawdown": -0.16607,
+            "calmar": 2.5618
+          },
+          "sma_50_200": {
+            "total_return": 0.2852,
+            "cagr": 0.13452,
+            "sharpe": 0.8219,
+            "sortino": 1.1709,
+            "max_drawdown": -0.15674,
+            "calmar": 0.8582
+          },
+          "random": {
+            "sharpe_p50": 1.5841,
+            "sharpe_p95": 1.8985,
+            "agent_percentile": 77.0
+          },
+          "held_out": false
+        },
+        {
+          "ticker": "MSFT",
+          "start": "2023-01-03",
+          "end": "2024-12-31",
+          "agent": {
+            "total_return": 0.52094,
+            "cagr": 0.23481,
+            "sharpe": 1.4057,
+            "sortino": 2.0852,
+            "max_drawdown": -0.11398,
+            "calmar": 2.0601,
+            "avg_exposure": 0.7064,
+            "turnover": 2.2428
+          },
+          "buy_and_hold": {
+            "total_return": 0.7882,
+            "cagr": 0.33957,
+            "sharpe": 1.4044,
+            "sortino": 2.0981,
+            "max_drawdown": -0.15487,
+            "calmar": 2.1926
+          },
+          "sma_50_200": {
+            "total_return": 0.47326,
+            "cagr": 0.21519,
+            "sharpe": 1.0719,
+            "sortino": 1.559,
+            "max_drawdown": -0.15487,
+            "calmar": 1.3895
+          },
+          "random": {
+            "sharpe_p50": 1.266,
+            "sharpe_p95": 1.5044,
+            "agent_percentile": 74.0
+          },
+          "held_out": false
+        },
+        {
+          "ticker": "GOOGL",
+          "start": "2023-01-03",
+          "end": "2024-12-31",
+          "agent": {
+            "total_return": 0.75233,
+            "cagr": 0.32598,
+            "sharpe": 1.4596,
+            "sortino": 2.1749,
+            "max_drawdown": -0.16646,
+            "calmar": 1.9583,
+            "avg_exposure": 0.7168,
+            "turnover": 2.5495
+          },
+          "buy_and_hold": {
+            "total_return": 1.1318,
+            "cagr": 0.46338,
+            "sharpe": 1.4515,
+            "sortino": 2.1696,
+            "max_drawdown": -0.22138,
+            "calmar": 2.0932
+          },
+          "sma_50_200": {
+            "total_return": 0.79895,
+            "cagr": 0.34361,
+            "sharpe": 1.2964,
+            "sortino": 1.9061,
+            "max_drawdown": -0.22138,
+            "calmar": 1.5522
+          },
+          "random": {
+            "sharpe_p50": 1.3531,
+            "sharpe_p95": 1.6601,
+            "agent_percentile": 76.0
+          },
+          "held_out": false
+        },
+        {
+          "ticker": "TSLA",
+          "start": "2023-01-03",
+          "end": "2024-12-31",
+          "agent": {
+            "total_return": 1.89774,
+            "cagr": 0.7077,
+            "sharpe": 1.411,
+            "sortino": 2.2992,
+            "max_drawdown": -0.41855,
+            "calmar": 1.6909,
+            "avg_exposure": 0.7755,
+            "turnover": 2.1292
+          },
+          "buy_and_hold": {
+            "total_return": 2.7358,
+            "cagr": 0.94046,
+            "sharpe": 1.4265,
+            "sortino": 2.3186,
+            "max_drawdown": -0.51575,
+            "calmar": 1.8235
+          },
+          "sma_50_200": {
+            "total_return": 0.27411,
+            "cagr": 0.12958,
+            "sharpe": 0.4956,
+            "sortino": 0.788,
+            "max_drawdown": -0.4699,
+            "calmar": 0.2758
+          },
+          "random": {
+            "sharpe_p50": 1.3442,
+            "sharpe_p95": 1.6748,
+            "agent_percentile": 64.0
+          },
+          "held_out": false
+        },
+        {
+          "ticker": "SPY",
+          "start": "2023-01-03",
+          "end": "2024-12-31",
+          "agent": {
+            "total_return": 0.36831,
+            "cagr": 0.17085,
+            "sharpe": 1.8536,
+            "sortino": 2.7734,
+            "max_drawdown": -0.07058,
+            "calmar": 2.4207,
+            "avg_exposure": 0.6747,
+            "turnover": 1.9128
+          },
+          "buy_and_hold": {
+            "total_return": 0.58243,
+            "cagr": 0.25968,
+            "sharpe": 1.8676,
+            "sortino": 2.7953,
+            "max_drawdown": -0.09974,
+            "calmar": 2.6034
+          },
+          "sma_50_200": {
+            "total_return": 0.48641,
+            "cagr": 0.22063,
+            "sharpe": 1.6638,
+            "sortino": 2.4591,
+            "max_drawdown": -0.09974,
+            "calmar": 2.212
+          },
+          "random": {
+            "sharpe_p50": 1.652,
+            "sharpe_p95": 2.0184,
+            "agent_percentile": 86.0
+          },
+          "held_out": false
+        },
+        {
+          "ticker": "NVDA",
+          "start": "2023-01-03",
+          "end": "2024-12-31",
+          "agent": {
+            "total_return": 4.46454,
+            "cagr": 1.34955,
+            "sharpe": 2.4715,
+            "sortino": 4.3564,
+            "max_drawdown": -0.20841,
+            "calmar": 6.4755,
+            "avg_exposure": 0.7391,
+            "turnover": 2.2136
+          },
+          "buy_and_hold": {
+            "total_return": 8.38789,
+            "cagr": 2.08458,
+            "sharpe": 2.4839,
+            "sortino": 4.4162,
+            "max_drawdown": -0.27047,
+            "calmar": 7.7073
+          },
+          "sma_50_200": {
+            "total_return": 5.96507,
+            "cagr": 1.65452,
+            "sharpe": 2.218,
+            "sortino": 3.9004,
+            "max_drawdown": -0.27047,
+            "calmar": 6.1173
+          },
+          "random": {
+            "sharpe_p50": 2.3463,
+            "sharpe_p95": 2.6387,
+            "agent_percentile": 76.0
+          },
+          "held_out": false
+        },
+        {
+          "ticker": "AMZN",
+          "start": "2023-01-03",
+          "end": "2024-12-31",
+          "agent": {
+            "total_return": 1.0219,
+            "cagr": 0.42494,
+            "sharpe": 1.7032,
+            "sortino": 2.6493,
+            "max_drawdown": -0.14766,
+            "calmar": 2.8777,
+            "avg_exposure": 0.7223,
+            "turnover": 2.3543
+          },
+          "buy_and_hold": {
+            "total_return": 1.5564,
+            "cagr": 0.60337,
+            "sharpe": 1.6974,
+            "sortino": 2.6433,
+            "max_drawdown": -0.19644,
+            "calmar": 3.0715
+          },
+          "sma_50_200": {
+            "total_return": 0.82405,
+            "cagr": 0.353,
+            "sharpe": 1.3038,
+            "sortino": 1.9986,
+            "max_drawdown": -0.1949,
+            "calmar": 1.8112
+          },
+          "random": {
+            "sharpe_p50": 1.5718,
+            "sharpe_p95": 1.8463,
+            "agent_percentile": 81.0
+          },
+          "held_out": false
+        },
+        {
+          "ticker": "JPM",
+          "start": "2023-01-03",
+          "end": "2024-12-31",
+          "agent": {
+            "total_return": 0.5655,
+            "cagr": 0.25288,
+            "sharpe": 1.5312,
+            "sortino": 2.336,
+            "max_drawdown": -0.09908,
+            "calmar": 2.5523,
+            "avg_exposure": 0.6943,
+            "turnover": 2.0803
+          },
+          "buy_and_hold": {
+            "total_return": 0.87056,
+            "cagr": 0.37025,
+            "sharpe": 1.5335,
+            "sortino": 2.3249,
+            "max_drawdown": -0.13487,
+            "calmar": 2.7453
+          },
+          "sma_50_200": {
+            "total_return": 0.86772,
+            "cagr": 0.3692,
+            "sharpe": 1.5302,
+            "sortino": 2.3196,
+            "max_drawdown": -0.13487,
+            "calmar": 2.7376
+          },
+          "random": {
+            "sharpe_p50": 1.3819,
+            "sharpe_p95": 1.7717,
+            "agent_percentile": 77.0
+          },
+          "held_out": true
+        },
+        {
+          "ticker": "XOM",
+          "start": "2023-01-03",
+          "end": "2024-12-31",
+          "agent": {
+            "total_return": 0.07826,
+            "cagr": 0.03863,
+            "sharpe": 0.3173,
+            "sortino": 0.4621,
+            "max_drawdown": -0.14041,
+            "calmar": 0.2751,
+            "avg_exposure": 0.7198,
+            "turnover": 2.2142
+          },
+          "buy_and_hold": {
+            "total_return": 0.08006,
+            "cagr": 0.0395,
+            "sharpe": 0.2855,
+            "sortino": 0.4132,
+            "max_drawdown": -0.18731,
+            "calmar": 0.2109
+          },
+          "sma_50_200": {
+            "total_return": -0.20989,
+            "cagr": -0.11175,
+            "sharpe": -0.497,
+            "sortino": -0.6972,
+            "max_drawdown": -0.30663,
+            "calmar": -0.3644
+          },
+          "random": {
+            "sharpe_p50": 0.1545,
+            "sharpe_p95": 0.4719,
+            "agent_percentile": 76.0
+          },
+          "held_out": true
+        },
+        {
+          "ticker": "KO",
+          "start": "2023-01-03",
+          "end": "2024-12-31",
+          "agent": {
+            "total_return": 0.03477,
+            "cagr": 0.01734,
+            "sharpe": 0.2328,
+            "sortino": 0.3245,
+            "max_drawdown": -0.12491,
+            "calmar": 0.1388,
+            "avg_exposure": 0.6902,
+            "turnover": 1.7026
+          },
+          "buy_and_hold": {
+            "total_return": 0.0514,
+            "cagr": 0.02553,
+            "sharpe": 0.2581,
+            "sortino": 0.361,
+            "max_drawdown": -0.17266,
+            "calmar": 0.1479
+          },
+          "sma_50_200": {
+            "total_return": -0.03519,
+            "cagr": -0.01786,
+            "sharpe": -0.1092,
+            "sortino": -0.1546,
+            "max_drawdown": -0.14857,
+            "calmar": -0.1202
+          },
+          "random": {
+            "sharpe_p50": 0.0726,
+            "sharpe_p95": 0.3953,
+            "agent_percentile": 81.0
+          },
+          "held_out": true
+        },
+        {
+          "ticker": "UNH",
+          "start": "2023-01-03",
+          "end": "2024-12-31",
+          "agent": {
+            "total_return": 0.02761,
+            "cagr": 0.01379,
+            "sharpe": 0.166,
+            "sortino": 0.2299,
+            "max_drawdown": -0.17226,
+            "calmar": 0.0801,
+            "avg_exposure": 0.709,
+            "turnover": 2.2889
+          },
+          "buy_and_hold": {
+            "total_return": 0.00554,
+            "cagr": 0.00278,
+            "sharpe": 0.1338,
+            "sortino": 0.1843,
+            "max_drawdown": -0.2205,
+            "calmar": 0.0126
+          },
+          "sma_50_200": {
+            "total_return": -0.16111,
+            "cagr": -0.08457,
+            "sharpe": -0.4185,
+            "sortino": -0.529,
+            "max_drawdown": -0.23389,
+            "calmar": -0.3616
+          },
+          "random": {
+            "sharpe_p50": 0.0428,
+            "sharpe_p95": 0.4038,
+            "agent_percentile": 74.0
+          },
+          "held_out": true
+        },
+        {
+          "ticker": "HD",
+          "start": "2023-01-03",
+          "end": "2024-12-31",
+          "agent": {
+            "total_return": 0.221,
+            "cagr": 0.10565,
+            "sharpe": 0.7433,
+            "sortino": 1.0692,
+            "max_drawdown": -0.12703,
+            "calmar": 0.8317,
+            "avg_exposure": 0.7139,
+            "turnover": 2.1219
+          },
+          "buy_and_hold": {
+            "total_return": 0.29659,
+            "cagr": 0.13957,
+            "sharpe": 0.7283,
+            "sortino": 1.0427,
+            "max_drawdown": -0.17738,
+            "calmar": 0.7868
+          },
+          "sma_50_200": {
+            "total_return": -0.03871,
+            "cagr": -0.01966,
+            "sharpe": -0.0137,
+            "sortino": -0.0186,
+            "max_drawdown": -0.26527,
+            "calmar": -0.0741
+          },
+          "random": {
+            "sharpe_p50": 0.5844,
+            "sharpe_p95": 1.0276,
+            "agent_percentile": 74.0
+          },
+          "held_out": true
+        },
+        {
+          "ticker": "PG",
+          "start": "2023-01-03",
+          "end": "2024-12-31",
+          "agent": {
+            "total_return": 0.11941,
+            "cagr": 0.05838,
+            "sharpe": 0.6039,
+            "sortino": 0.8701,
+            "max_drawdown": -0.07321,
+            "calmar": 0.7973,
+            "avg_exposure": 0.6849,
+            "turnover": 1.8417
+          },
+          "buy_and_hold": {
+            "total_return": 0.1624,
+            "cagr": 0.07863,
+            "sharpe": 0.5816,
+            "sortino": 0.834,
+            "max_drawdown": -0.10715,
+            "calmar": 0.7339
+          },
+          "sma_50_200": {
+            "total_return": 0.05935,
+            "cagr": 0.02942,
+            "sharpe": 0.2737,
+            "sortino": 0.3812,
+            "max_drawdown": -0.10715,
+            "calmar": 0.2746
+          },
+          "random": {
+            "sharpe_p50": 0.4197,
+            "sharpe_p95": 0.7456,
+            "agent_percentile": 86.0
+          },
+          "held_out": true
+        },
+        {
+          "ticker": "CAT",
+          "start": "2023-01-03",
+          "end": "2024-12-31",
+          "agent": {
+            "total_return": 0.40753,
+            "cagr": 0.18761,
+            "sharpe": 0.9634,
+            "sortino": 1.4578,
+            "max_drawdown": -0.16211,
+            "calmar": 1.1573,
+            "avg_exposure": 0.7255,
+            "turnover": 2.1935
+          },
+          "buy_and_hold": {
+            "total_return": 0.57453,
+            "cagr": 0.25651,
+            "sharpe": 0.9722,
+            "sortino": 1.4711,
+            "max_drawdown": -0.21801,
+            "calmar": 1.1766
+          },
+          "sma_50_200": {
+            "total_return": 0.35296,
+            "cagr": 0.16422,
+            "sharpe": 0.7104,
+            "sortino": 1.0405,
+            "max_drawdown": -0.25304,
+            "calmar": 0.649
+          },
+          "random": {
+            "sharpe_p50": 0.8591,
+            "sharpe_p95": 1.2256,
+            "agent_percentile": 68.0
+          },
+          "held_out": true
+        },
+        {
+          "ticker": "DIS",
+          "start": "2023-01-03",
+          "end": "2024-12-31",
+          "agent": {
+            "total_return": 0.21211,
+            "cagr": 0.1016,
+            "sharpe": 0.5949,
+            "sortino": 0.8793,
+            "max_drawdown": -0.22791,
+            "calmar": 0.4458,
+            "avg_exposure": 0.7522,
+            "turnover": 1.693
+          },
+          "buy_and_hold": {
+            "total_return": 0.26701,
+            "cagr": 0.12641,
+            "sharpe": 0.5867,
+            "sortino": 0.8623,
+            "max_drawdown": -0.29983,
+            "calmar": 0.4216
+          },
+          "sma_50_200": {
+            "total_return": -0.02741,
+            "cagr": -0.01388,
+            "sharpe": -0.0111,
+            "sortino": -0.0162,
+            "max_drawdown": -0.30692,
+            "calmar": -0.0452
+          },
+          "random": {
+            "sharpe_p50": 0.4583,
+            "sharpe_p95": 0.8721,
+            "agent_percentile": 65.0
+          },
+          "held_out": true
+        },
+        {
+          "ticker": "WMT",
+          "start": "2023-01-03",
+          "end": "2024-12-31",
+          "agent": {
+            "total_return": 0.58527,
+            "cagr": 0.26081,
+            "sharpe": 2.0689,
+            "sortino": 3.206,
+            "max_drawdown": -0.07711,
+            "calmar": 3.3823,
+            "avg_exposure": 0.6834,
+            "turnover": 1.81
+          },
+          "buy_and_hold": {
+            "total_return": 0.93929,
+            "cagr": 0.39535,
+            "sharpe": 2.0773,
+            "sortino": 3.2228,
+            "max_drawdown": -0.10814,
+            "calmar": 3.656
+          },
+          "sma_50_200": {
+            "total_return": 0.93615,
+            "cagr": 0.39421,
+            "sharpe": 2.0724,
+            "sortino": 3.2152,
+            "max_drawdown": -0.10814,
+            "calmar": 3.6455
+          },
+          "random": {
+            "sharpe_p50": 1.8798,
+            "sharpe_p95": 2.2179,
+            "agent_percentile": 84.0
+          },
+          "held_out": true
+        },
+        {
+          "ticker": "INTC",
+          "start": "2023-01-03",
+          "end": "2024-12-31",
+          "agent": {
+            "total_return": -0.16963,
+            "cagr": -0.08926,
+            "sharpe": -0.0828,
+            "sortino": -0.1076,
+            "max_drawdown": -0.52754,
+            "calmar": -0.1692,
+            "avg_exposure": 0.7652,
+            "turnover": 1.793
+          },
+          "buy_and_hold": {
+            "total_return": -0.22212,
+            "cagr": -0.11869,
+            "sharpe": -0.0417,
+            "sortino": -0.0546,
+            "max_drawdown": -0.62287,
+            "calmar": -0.1905
+          },
+          "sma_50_200": {
+            "total_return": -0.00456,
+            "cagr": -0.00229,
+            "sharpe": 0.1363,
+            "sortino": 0.1844,
+            "max_drawdown": -0.39994,
+            "calmar": -0.0057
+          },
+          "random": {
+            "sharpe_p50": -0.0686,
+            "sharpe_p95": 0.2715,
+            "agent_percentile": 48.0
+          },
+          "held_out": true
+        }
+      ]
+    }
+  ],
+  "generated": "2026-11-04 18:18:37"
+}

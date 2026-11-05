@@ -1,151 +1,169 @@
 """
-Single-stock continuous-action trading environment.
+Single-stock, long-only, continuous-allocation trading environment.
 
-Observation (17 floats):
-  Portfolio state (3):
-    0  position       current stock allocation in [0, 1]
-    1  cash_ratio     cash / initial_cash
-    2  unrealized_pnl (portfolio_value - initial_cash) / initial_cash
+Observation (17 floats, all roughly unit-scale):
+  Account (3):
+    0  position        current stock allocation in [0, 1]
+    1  drawdown        (value / episode peak - 1) / 0.1
+    2  episode_return  log(value / episode start value) / 0.2
+  Market (14): FEATURE_COLUMNS from data/fetch.py, standardised with the fixed
+  (center, scale) pairs in FEATURE_SCALING and clipped to ±5. Fixed constants
+  (not running statistics) keep train, eval and the browser export identical.
 
-  Price / momentum (6):
-    3  log_return     previous day log return
-    4  sma_10         (sma10 - price) / price
-    5  sma_30         (sma30 - price) / price
-    6  volatility     20-day rolling std of log returns
-    7  rsi            RSI / 100
-    8  macd           (ema12 - ema26) / price
+Action (1 float): target allocation, clipped to [0, 1].
 
-  Volume (2):
-    9  volume_ratio   today volume / 20d avg volume
-   10  atr_norm       ATR(14) / price
+Timing: the agent sees day t's close, rebalances at that close, and earns the
+return from t to t+1. Costs: 0.1% of traded value plus volume-scaled impact.
 
-  Range / calendar (4):
-   11  hw_proximity   (price - 52w_low) / (52w_high - 52w_low)
-   12  day_sin        sin(2π × day_of_week / 5)
-   13  day_cos        cos(2π × day_of_week / 5)
-   14  month_sin      sin(2π × (month-1) / 12)
+Reward ("level"):  log_return − 0.05·|drawdown| − 0.20·|min(0, log_return)|
+Reward ("mv"):     log_return − ½·κ·log_return²   (κ = risk_aversion)
+Reward ("delta"):  log_return − 0.5·max(0, deepening of drawdown) − 0.20·|min(0, log_return)|
 
-  Macro (2):
-   15  vix_norm       VIX / 30
-   16  rate_norm      10Y yield / 10
-
-Action (1 float in [-1, 1]):
-  Target portfolio weight; clipped to [0, 1] for long-only.
-
-Reward (Sortino-shaped):
-  log_return
-  − drawdown_penalty   (0.05 × |drawdown from peak| when in drawdown)
-  − downside_penalty   (0.2  × |loss| — asymmetric: losses penalized more)
-  Transaction costs and market impact are implicit in portfolio value.
+Episodes: with random_start=True each reset begins at a random day and runs
+episode_length days (time-limit -> truncated=True, so the learner bootstraps).
+With random_start=False the episode covers the whole frame (used for backtests).
 """
-import numpy as np
+from __future__ import annotations
+
 import gymnasium as gym
+import numpy as np
 from gymnasium import spaces
 
+from data.fetch import FEATURE_COLUMNS
+
+OBS_VERSION = "v2"
 OBS_DIM = 17
 
-# Market feature columns that must exist in the df (order matters for _obs)
-_MARKET_COLS = [
-    "log_return", "sma_10", "sma_30", "volatility", "rsi", "macd",
-    "volume_ratio", "atr_norm",
-    "hw_proximity", "day_sin", "day_cos", "month_sin",
-    "vix_norm", "rate_norm",
-]
+FEATURE_SCALING = {  # column: (center, scale), from 2010-2022 basket statistics
+    "log_return":   (0.0,   0.02),
+    "sma_10":       (0.0,   0.035),
+    "sma_30":       (0.0,   0.065),
+    "volatility":   (0.019, 0.012),
+    "rsi":          (0.54,  0.12),
+    "macd":         (0.0,   0.024),
+    "volume_ratio": (1.0,   0.43),
+    "atr_norm":     (0.026, 0.015),
+    "hw_proximity": (0.5,   0.3),
+    "day_sin":      (0.0,   1.0),
+    "day_cos":      (0.0,   1.0),
+    "month_sin":    (0.0,   1.0),
+    "vix_norm":     (0.62,  0.25),
+    "rate_norm":    (0.22,  0.08),
+}
+OBS_NAMES = ["position", "drawdown", "episode_return"] + FEATURE_COLUMNS
+
+
+def scale_features(df) -> np.ndarray:
+    raw = df[FEATURE_COLUMNS].to_numpy(dtype=np.float64)
+    center = np.array([FEATURE_SCALING[c][0] for c in FEATURE_COLUMNS])
+    scale = np.array([FEATURE_SCALING[c][1] for c in FEATURE_COLUMNS])
+    return np.clip((raw - center) / scale, -5.0, 5.0).astype(np.float32)
 
 
 class TradingEnv(gym.Env):
     metadata = {"render_modes": []}
 
-    TRANSACTION_COST = 0.001   # 0.1% base cost per unit |Δposition|
-    IMPACT_SCALE     = 0.0003  # market-impact coefficient (scales with illiquidity)
-    DD_PENALTY       = 0.05    # drawdown penalty coefficient
-    DOWNSIDE_PENALTY = 0.20    # asymmetric loss penalty coefficient
+    TRANSACTION_COST = 0.001
+    IMPACT_SCALE = 0.0003
+    DD_PENALTY = 0.05
+    DOWNSIDE_PENALTY = 0.20
+    DD_DELTA_PENALTY = 0.5
 
-    def __init__(self, df, initial_cash: float = 10_000.0):
+    def __init__(self, df, initial_cash: float = 10_000.0,
+                 episode_length: int | None = None, random_start: bool = False,
+                 reward_mode: str = "level", risk_aversion: float = 1.0):
         super().__init__()
-        self.df           = df.reset_index(drop=True)
-        self.n_steps      = len(df)
+        self.risk_aversion = risk_aversion
+        if reward_mode not in ("level", "delta", "mv"):
+            raise ValueError(f"unknown reward_mode {reward_mode!r}")
+        self.reward_mode = reward_mode
+        if len(df) < 3:
+            raise ValueError("Need at least 3 rows of data")
+        self.dates = df.index
+        self.close = df["close"].to_numpy(dtype=np.float64)
+        self.vol_ratio = df["volume_ratio"].to_numpy(dtype=np.float64)
+        self.features = scale_features(df)
+        self.n_steps = len(df)
         self.initial_cash = initial_cash
+        self.random_start = random_start
+        self.episode_length = episode_length
 
-        self.observation_space = spaces.Box(
-            low=-np.inf, high=np.inf, shape=(OBS_DIM,), dtype=np.float32
-        )
-        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(1,), dtype=np.float32)
+        self.observation_space = spaces.Box(-np.inf, np.inf, shape=(OBS_DIM,), dtype=np.float32)
+        self.action_space = spaces.Box(0.0, 1.0, shape=(1,), dtype=np.float32)
+        self._reset_state(0)
 
-        self._reset_state()
-
-    # ------------------------------------------------------------------
-    def _reset_state(self):
-        self.t                  = 0
-        self.cash               = self.initial_cash
-        self.shares             = 0.0
-        self.position           = 0.0
-        self.portfolio_value    = self.initial_cash
-        self.prev_portfolio_value = self.initial_cash
-        self.peak_value         = self.initial_cash
-        self.episode_turnover   = 0.0
+    def _reset_state(self, start: int):
+        self.start = start
+        span = self.episode_length if self.episode_length else self.n_steps - 1
+        self.end = min(start + span, self.n_steps - 1)
+        self.t = start
+        self.cash = self.initial_cash
+        self.shares = 0.0
+        self.position = 0.0
+        self.portfolio_value = self.initial_cash
+        self.peak_value = self.initial_cash
+        self.episode_turnover = 0.0
+        self.values = [self.initial_cash]
+        self.allocations: list[float] = []
 
     def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
-        self._reset_state()
+        start = 0
+        if self.random_start and self.episode_length and self.n_steps - 1 > self.episode_length:
+            start = int(self.np_random.integers(0, self.n_steps - 1 - self.episode_length))
+        self._reset_state(start)
         return self._obs(), {}
 
-    # ------------------------------------------------------------------
     def _obs(self) -> np.ndarray:
-        row = self.df.iloc[self.t]
-        portfolio_obs = np.array([
+        account = np.array([
             self.position,
-            self.cash / self.initial_cash,
-            (self.portfolio_value - self.initial_cash) / self.initial_cash,
+            (self.portfolio_value / self.peak_value - 1.0) / 0.1,
+            np.log(self.portfolio_value / self.initial_cash) / 0.2,
         ], dtype=np.float32)
+        return np.concatenate([np.clip(account, -5.0, 5.0), self.features[self.t]])
 
-        market_obs = np.array(
-            [float(row.get(col, 0.0)) for col in _MARKET_COLS],
-            dtype=np.float32,
-        )
-        # clip to prevent exploding values from rare data issues
-        market_obs = np.clip(market_obs, -10.0, 10.0)
-        return np.concatenate([portfolio_obs, market_obs])
-
-    # ------------------------------------------------------------------
     def step(self, action):
-        target_alloc = float(np.clip(action[0], 0.0, 1.0))
-        price        = float(self.df.iloc[self.t]["close"])
+        target = float(np.clip(np.asarray(action).reshape(-1)[0], 0.0, 1.0))
+        price = self.close[self.t]
 
-        # Rebalance to target allocation
-        target_stock_value  = target_alloc * self.portfolio_value
-        current_stock_value = self.shares * price
-        delta_value         = target_stock_value - current_stock_value
-        delta_alloc         = abs(target_alloc - self.position)
+        target_value = target * self.portfolio_value
+        delta_value = target_value - self.shares * price
+        delta_alloc = abs(target - self.position)
+        illiquidity = max(0.5, 2.0 / (self.vol_ratio[self.t] + 1e-8))
+        cost = (self.TRANSACTION_COST + self.IMPACT_SCALE * delta_alloc * illiquidity) * abs(delta_value)
 
-        # Transaction cost + volume-adjusted market impact
-        vol_ratio   = float(self.df.iloc[self.t].get("volume_ratio", 1.0))
-        illiquidity = max(0.5, 2.0 / (vol_ratio + 1e-8))  # low vol = higher cost
-        tc = (self.TRANSACTION_COST + self.IMPACT_SCALE * delta_alloc * illiquidity) * abs(delta_value)
+        self.shares += delta_value / price
+        self.cash -= delta_value + cost
+        self.episode_turnover += delta_alloc
+        self.allocations.append(target)
 
-        self.shares            += delta_value / price
-        self.cash              -= delta_value + tc
-        self.episode_turnover  += delta_alloc
+        prev_value = self.portfolio_value
+        self.t += 1
+        next_price = self.close[self.t]
+        self.portfolio_value = max(self.shares * next_price + self.cash, 1e-6)
+        self.position = self.shares * next_price / self.portfolio_value
+        self.values.append(self.portfolio_value)
 
-        # Advance one day
-        self.t      += 1
-        terminated   = self.t >= self.n_steps - 1
-        next_price   = float(self.df.iloc[self.t]["close"])
-        self.portfolio_value = self.shares * next_price + self.cash
-
-        # ── Reward ───────────────────────────────────────────────────
-        log_ret = float(np.log(self.portfolio_value / (self.prev_portfolio_value + 1e-8)))
-        self.prev_portfolio_value = self.portfolio_value
-        self.position = (self.shares * next_price) / (self.portfolio_value + 1e-8)
-
-        # Peak tracking for drawdown penalty
+        log_ret = float(np.log(self.portfolio_value / prev_value))
+        prev_dd = prev_value / self.peak_value - 1.0
         self.peak_value = max(self.peak_value, self.portfolio_value)
-        drawdown        = (self.portfolio_value - self.peak_value) / (self.peak_value + 1e-8)
-        dd_penalty      = self.DD_PENALTY * abs(min(0.0, drawdown))
+        drawdown = self.portfolio_value / self.peak_value - 1.0
+        downside = self.DOWNSIDE_PENALTY * abs(min(0.0, log_ret))
+        if self.reward_mode == "level":   # penalise being in drawdown, every day
+            reward = log_ret - self.DD_PENALTY * abs(drawdown) - downside
+        elif self.reward_mode == "mv":    # mean-variance utility, no drawdown terms
+            reward = log_ret - 0.5 * self.risk_aversion * log_ret ** 2
+        else:                             # penalise only drawdown getting deeper
+            reward = log_ret - self.DD_DELTA_PENALTY * max(0.0, prev_dd - drawdown) - downside
 
-        # Asymmetric downside penalty (Sortino-like)
-        downside_penalty = self.DOWNSIDE_PENALTY * abs(min(0.0, log_ret))
+        truncated = self.t >= self.end
+        info = {"portfolio_value": self.portfolio_value, "position": self.position,
+                "price": next_price, "t": self.t, "log_return": log_ret}
+        return self._obs(), reward, False, truncated, info
 
-        reward = log_ret - dd_penalty - downside_penalty
+    # Helpers for charts / summaries
+    def episode_prices(self) -> np.ndarray:
+        return self.close[self.start:self.t + 1]
 
-        return self._obs(), reward, terminated, False, {}
+    def episode_dates(self):
+        return self.dates[self.start:self.t + 1]

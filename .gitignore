@@ -23,3 +23,7 @@ frontend/dist/
 # Misc
 .env
 .DS_Store
+data/cache/
+
+# Training logs
+logs/

@@ -1,101 +1,63 @@
 """
-Training loop — 500k environment steps with checkpoints every 50k.
+Headless multi-asset training.
 
 Usage:
-    python train.py [--steps 500000] [--ckpt-dir checkpoints]
+    python train.py --steps 500000                  # resumes checkpoints/multi_latest.pt
+    python train.py --steps 1000000 --seed 2 --run seed2 --fresh
 """
 import argparse
-import os
 import time
-import numpy as np
 
-from data.fetch import fetch
-from env.trading_env import TradingEnv
-from agent.ppo import PPOAgent
+from trainer import TRAIN_END, TRAIN_START, VAL_END, VAL_START, Hooks, TrainConfig, Trainer, load_basket
 
 
 def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument("--steps", type=int, default=500_000)
     p.add_argument("--ckpt-dir", default="checkpoints")
-    p.add_argument("--rollout-steps", type=int, default=2048)
-    p.add_argument("--lr", type=float, default=3e-4)
-    p.add_argument("--device", default="cpu")
+    p.add_argument("--run", default="multi", help="Checkpoint name prefix")
     p.add_argument("--seed", type=int, default=42)
+    p.add_argument("--lr", type=float, default=3e-4)
+    p.add_argument("--episode-length", type=int, default=252)
+    p.add_argument("--gamma", type=float, default=0.9)
+    p.add_argument("--gae-lambda", type=float, default=0.9)
+    p.add_argument("--epochs", type=int, default=10)
+    p.add_argument("--reward", default="level", choices=["level", "delta", "mv"])
+    p.add_argument("--risk-aversion", type=float, default=1.0)
+    p.add_argument("--train-end", default=TRAIN_END)
+    p.add_argument("--val-start", default=VAL_START)
+    p.add_argument("--val-end", default=VAL_END)
+    p.add_argument("--no-val", action="store_true")
+    p.add_argument("--device", default="cpu")
+    p.add_argument("--fresh", action="store_true", help="Ignore an existing checkpoint")
     return p.parse_args()
 
 
-def train():
+def main():
     args = parse_args()
-    np.random.seed(args.seed)
-    os.makedirs(args.ckpt_dir, exist_ok=True)
-
-    print("Fetching training data (AAPL 2015-2022)…")
-    df = fetch("AAPL", "2015-01-01", "2022-12-31")
-    print(f"  {len(df)} trading days loaded")
-
-    env = TradingEnv(df)
-    obs_dim = env.observation_space.shape[0]
-    act_dim = env.action_space.shape[0]
-
-    agent = PPOAgent(
-        obs_dim=obs_dim,
-        act_dim=act_dim,
-        lr=args.lr,
-        rollout_steps=args.rollout_steps,
-        device=args.device,
-    )
-
-    obs, _ = env.reset(seed=args.seed)
-    hidden = agent.init_hidden()
-    ep_reward, ep_rewards = 0.0, []
-    next_ckpt = 50_000
+    cfg = TrainConfig(total_steps=args.steps, lr=args.lr, episode_length=args.episode_length,
+                      seed=args.seed, device=args.device,
+                      gamma=args.gamma, gae_lambda=args.gae_lambda, n_epochs=args.epochs, reward_mode=args.reward,
+                      risk_aversion=args.risk_aversion)
     t0 = time.time()
 
-    print(f"Training for {args.steps:,} steps\n")
+    def on_rollout(tr, step, s):
+        eps = tr.episodes[-30:]
+        if not eps:
+            return
+        sr = sum(e["sharpe"] for e in eps) / len(eps)
+        bh = sum(e["bnh_sharpe"] for e in eps) / len(eps)
+        ex = sum(e["avg_exposure"] for e in eps) / len(eps)
+        print(f"step {step:>9,} | ep Sharpe {sr:+.2f} (B&H {bh:+.2f}) | exposure {ex:.2f} | "
+              f"kl {s['approx_kl']:.4f} ev {s['explained_variance']:+.2f} std {s['action_std']:.3f} | "
+              f"{step / (time.time() - t0):,.0f} steps/s", flush=True)
 
-    for step in range(1, args.steps + 1):
-        action, log_prob, value, hidden = agent.select_action(obs, hidden)
-        next_obs, reward, terminated, truncated, _ = env.step(action)
-        done = terminated or truncated
-
-        hx = hidden[0].squeeze().cpu().numpy()
-        cx = hidden[1].squeeze().cpu().numpy()
-        agent.buffer.add(obs, action, reward, float(done), value, log_prob, hx, cx)
-        ep_reward += reward
-        obs = next_obs
-
-        if done:
-            ep_rewards.append(ep_reward)
-            ep_reward = 0.0
-            obs, _ = env.reset()
-            hidden = agent.init_hidden()
-
-        # PPO update when rollout buffer is full
-        if step % args.rollout_steps == 0:
-            _, _, last_value, _ = agent.select_action(obs, hidden)
-            agent.update(last_value)
-
-        # Logging
-        if step % 10_000 == 0:
-            mean_r = np.mean(ep_rewards[-20:]) if ep_rewards else 0.0
-            elapsed = time.time() - t0
-            print(
-                f"Step {step:>8,} | ep_reward(20) {mean_r:+.4f} "
-                f"| {step / elapsed:,.0f} steps/s"
-            )
-
-        # Checkpoint
-        if step >= next_ckpt:
-            ckpt_path = os.path.join(args.ckpt_dir, f"ppo_{step}.pt")
-            agent.save(ckpt_path)
-            print(f"  [ckpt] saved -> {ckpt_path}")
-            next_ckpt += 50_000
-
-    final_path = os.path.join(args.ckpt_dir, "ppo_final.pt")
-    agent.save(final_path)
-    print(f"\nTraining complete. Final model -> {final_path}")
+    val = None if args.no_val else load_basket(start=args.val_start, end=args.val_end, log=lambda *_: None)
+    trainer = Trainer(load_basket(start=TRAIN_START, end=args.train_end), cfg, args.ckpt_dir, args.run,
+                      resume=not args.fresh, hooks=Hooks(on_rollout=on_rollout), val_datasets=val)
+    out = trainer.run()
+    print(f"\nDone: {out['steps']:,} steps this run, {out['lifetime_steps']:,} lifetime -> {trainer.ckpt_path}")
 
 
 if __name__ == "__main__":
-    train()
+    main()

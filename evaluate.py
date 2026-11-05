@@ -1,149 +1,120 @@
 """
-Backtest the trained PPO agent on 2023-2024 held-out data.
+Scorecard: deterministic backtests on held-out data, against baselines.
 
-Metrics reported:
-  - Total return
-  - Annualised Sharpe ratio
-  - Maximum drawdown
-  - Comparison vs. buy-and-hold benchmark
+  * Out-of-time:   training tickers on 2023-2024
+  * Out-of-sample: tickers never seen in training, on 2023-2024
+  * Baselines:     buy & hold, SMA 50/200 crossover, 200 random agents
+  * Several --model paths (e.g. one per seed) are aggregated with mean ± std.
 
 Usage:
-    python evaluate.py [--model checkpoints/ppo_final.pt]
+    python evaluate.py --model checkpoints/multi_latest.pt
+    python evaluate.py --model checkpoints/seed1_latest.pt checkpoints/seed2_latest.pt --plot
 """
-import argparse
-import os
-import numpy as np
-import matplotlib
-matplotlib.use("Agg")   # headless; swap to TkAgg/Qt5Agg if you want a window
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
+from __future__ import annotations
 
-from data.fetch import fetch
-from env.trading_env import TradingEnv
+import argparse
+import json
+import os
+import time
+
+import numpy as np
+
 from agent.ppo import PPOAgent
+from backtest import evaluate_ticker, run_agent
+from data.fetch import fetch
+from trainer import TRAIN_BASKET
+
+HELD_OUT = ["JPM", "XOM", "KO", "UNH", "HD", "PG", "CAT", "DIS", "WMT", "INTC"]
 
 
 def parse_args():
     p = argparse.ArgumentParser()
-    p.add_argument("--model", default="checkpoints/ppo_final.pt")
-    p.add_argument("--out", default="backtest.png")
-    p.add_argument("--device", default="cpu")
+    p.add_argument("--model", nargs="+", default=["checkpoints/multi_latest.pt"])
+    p.add_argument("--start", default="2023-01-01")
+    p.add_argument("--end", default="2024-12-31")
+    p.add_argument("--tickers", nargs="*", default=None, help="Default: training basket + held-out set")
+    p.add_argument("--n-random", type=int, default=200)
+    p.add_argument("--out", default="results/scorecard.json")
+    p.add_argument("--plot", action="store_true", help="Save an equity-curve PNG per model for SPY")
     return p.parse_args()
 
 
-# ---------------------------------------------------------------------------
-# Metrics helpers
-# ---------------------------------------------------------------------------
+def _agg(rows: list[dict], who: str, key: str):
+    vals = [r[who][key] for r in rows if who in r]
+    return (float(np.mean(vals)), float(np.std(vals))) if vals else (0.0, 0.0)
 
-def sharpe(daily_returns: np.ndarray, risk_free: float = 0.0) -> float:
-    excess = daily_returns - risk_free / 252
-    if excess.std() == 0:
-        return 0.0
-    return float(np.sqrt(252) * excess.mean() / excess.std())
-
-
-def max_drawdown(portfolio_values: np.ndarray) -> float:
-    peak = np.maximum.accumulate(portfolio_values)
-    dd = (portfolio_values - peak) / (peak + 1e-8)
-    return float(dd.min())
-
-
-# ---------------------------------------------------------------------------
-# Run backtest
-# ---------------------------------------------------------------------------
-
-def run_backtest(agent: PPOAgent, env: TradingEnv, df):
-    obs, _ = env.reset()
-    hidden = agent.init_hidden()
-    portfolio_values = [env.initial_cash]
-    allocations = []
-
-    while True:
-        action, _, _, hidden = agent.select_action(obs, hidden)
-        obs, reward, terminated, truncated, _ = env.step(action)
-        portfolio_values.append(env.portfolio_value)
-        allocations.append(float(np.clip(action[0], 0.0, 1.0)))
-        if terminated or truncated:
-            break
-
-    return np.array(portfolio_values), np.array(allocations)
-
-
-def buy_and_hold(df, initial_cash: float = 10_000.0) -> np.ndarray:
-    prices = df["close"].values
-    shares = initial_cash / prices[0]
-    return shares * prices
-
-
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
 
 def main():
     args = parse_args()
+    tickers = args.tickers or (TRAIN_BASKET + HELD_OUT)
+    data = {}
+    for t in tickers:
+        try:
+            data[t] = fetch(t, args.start, args.end)
+        except Exception as e:
+            print(f"[skip] {t}: {e}")
 
-    print("Fetching evaluation data (AAPL 2023-2024)…")
-    df = fetch("AAPL", "2023-01-01", "2024-12-31")
-    print(f"  {len(df)} trading days")
+    per_model = []
+    for path in args.model:
+        agent, meta = PPOAgent.from_checkpoint(path)
+        rows = [evaluate_ticker(agent, t, df, args.n_random) | {"held_out": t not in TRAIN_BASKET}
+                for t, df in data.items()]
+        per_model.append({"model": path, "lifetime_steps": meta.get("lifetime_steps"), "rows": rows})
+        if args.plot and "SPY" in data:
+            _plot(agent, data["SPY"], os.path.splitext(path)[0] + "_SPY.png")
 
-    env = TradingEnv(df)
-    obs_dim = env.observation_space.shape[0]
-    act_dim = env.action_space.shape[0]
+    # ── Print table (first model per ticker, then aggregate across models) ──
+    print(f"\nScorecard {args.start} → {args.end}  ({len(args.model)} model(s))\n")
+    hdr = f"{'Ticker':<7}{'Set':<10}{'Agent SR':>9}{'B&H SR':>8}{'SMA SR':>8}{'Agent DD':>10}{'B&H DD':>8}{'Rand pct':>9}{'Expo':>6}"
+    print(hdr); print("-" * len(hdr))
+    for i, t in enumerate(data):
+        rs = [m["rows"][i] for m in per_model]
+        a = np.mean([r["agent"]["sharpe"] for r in rs])
+        dd = np.mean([r["agent"]["max_drawdown"] for r in rs])
+        pct = np.mean([r.get("random", {}).get("agent_percentile", np.nan) for r in rs])
+        ex = np.mean([r["agent"]["avg_exposure"] for r in rs])
+        r0 = rs[0]
+        print(f"{t:<7}{'held-out' if r0['held_out'] else 'train':<10}{a:>9.2f}{r0['buy_and_hold']['sharpe']:>8.2f}"
+              f"{r0['sma_50_200']['sharpe']:>8.2f}{dd*100:>9.1f}%{r0['buy_and_hold']['max_drawdown']*100:>7.1f}%"
+              f"{pct:>8.0f}%{ex:>6.2f}")
 
-    agent = PPOAgent(obs_dim=obs_dim, act_dim=act_dim, device=args.device)
+    summary = {}
+    for group, flag in (("held_out", True), ("train_tickers", False)):
+        rows = [r for m in per_model for r in m["rows"] if r["held_out"] == flag]
+        if not rows:
+            continue
+        summary[group] = {
+            who: {k: dict(zip(("mean", "std"), map(lambda x: round(x, 4), _agg(rows, who, k))))
+                  for k in ("sharpe", "max_drawdown", "total_return")}
+            for who in ("agent", "buy_and_hold", "sma_50_200")
+        }
+        beats = np.mean([r["agent"]["sharpe"] > r["buy_and_hold"]["sharpe"] for r in rows])
+        summary[group]["agent_beats_bnh_sharpe_frac"] = round(float(beats), 3)
+        print(f"\n{group}: agent Sharpe {summary[group]['agent']['sharpe']['mean']:+.2f} "
+              f"± {summary[group]['agent']['sharpe']['std']:.2f} | B&H {summary[group]['buy_and_hold']['sharpe']['mean']:+.2f} "
+              f"| SMA {summary[group]['sma_50_200']['sharpe']['mean']:+.2f} | beats B&H on {beats*100:.0f}% of tickers")
 
-    if os.path.exists(args.model):
-        agent.load(args.model)
-        print(f"Loaded model from {args.model}")
-    else:
-        print(f"[warn] Model file not found ({args.model}). Running untrained agent for demo.")
+    os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
+    with open(args.out, "w") as f:
+        json.dump({"period": [args.start, args.end], "summary": summary, "models": per_model,
+                   "generated": time.strftime("%Y-%m-%d %H:%M:%S")}, f, indent=2)
+    print(f"\nSaved -> {args.out}")
 
-    ppo_values, allocs = run_backtest(agent, env, df)
-    bnh_values = buy_and_hold(df)
 
-    # Align lengths (env steps n-1 times so may differ by 1)
-    n = min(len(ppo_values), len(bnh_values))
-    ppo_values = ppo_values[:n]
-    bnh_values = bnh_values[:n]
-    dates = df.index[:n]
-
-    ppo_returns = np.diff(np.log(ppo_values + 1e-8))
-    bnh_returns = np.diff(np.log(bnh_values + 1e-8))
-
-    ppo_total_ret = (ppo_values[-1] / ppo_values[0] - 1) * 100
-    bnh_total_ret = (bnh_values[-1] / bnh_values[0] - 1) * 100
-
-    print("\n=== Backtest Metrics (2023-2024) ===")
-    print(f"{'Metric':<22} {'PPO Agent':>12} {'Buy-and-Hold':>14}")
-    print("-" * 50)
-    print(f"{'Total Return (%)':22} {ppo_total_ret:>12.2f} {bnh_total_ret:>14.2f}")
-    print(f"{'Sharpe Ratio':22} {sharpe(ppo_returns):>12.3f} {sharpe(bnh_returns):>14.3f}")
-    print(f"{'Max Drawdown (%)':22} {max_drawdown(ppo_values)*100:>12.2f} {max_drawdown(bnh_values)*100:>14.2f}")
-    print(f"{'Final Value ($)':22} {ppo_values[-1]:>12.2f} {bnh_values[-1]:>14.2f}")
-
-    # ---- Plot ---------------------------------------------------------------
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), gridspec_kw={"height_ratios": [3, 1]})
-
-    ax1.plot(dates, ppo_values, label="PPO Agent", color="royalblue", linewidth=1.5)
-    ax1.plot(dates, bnh_values, label="Buy & Hold", color="orange", linewidth=1.5, linestyle="--")
-    ax1.set_title("PPO RL Trading Agent vs Buy-and-Hold (AAPL 2023-2024)", fontsize=13)
-    ax1.set_ylabel("Portfolio Value ($)")
-    ax1.legend()
-    ax1.grid(True, alpha=0.3)
-    ax1.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m"))
-
-    n_alloc = min(len(allocs), len(dates) - 1)
-    ax2.fill_between(dates[:n_alloc], allocs[:n_alloc], alpha=0.5, color="royalblue", label="Stock allocation")
-    ax2.set_ylim(0, 1)
-    ax2.set_ylabel("Allocation")
-    ax2.set_xlabel("Date")
-    ax2.legend()
-    ax2.grid(True, alpha=0.3)
-    ax2.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m"))
-
-    plt.tight_layout()
-    plt.savefig(args.out, dpi=150)
-    print(f"\nChart saved -> {args.out}")
+def _plot(agent, df, out):
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    res = run_agent(agent, df)
+    prices = df["close"].to_numpy()
+    fig, (a1, a2) = plt.subplots(2, 1, figsize=(12, 7), gridspec_kw={"height_ratios": [3, 1]}, sharex=True)
+    a1.plot(df.index, res["values"], label="Agent", color="#F0A63C")
+    a1.plot(df.index, 10_000 * prices / prices[0], label="Buy & hold", color="#7D8A9C", ls="--")
+    a1.legend(); a1.grid(alpha=.3); a1.set_ylabel("Portfolio ($)")
+    a2.fill_between(df.index[:-1], res["allocations"], color="#F0A63C", alpha=.5)
+    a2.set_ylim(0, 1); a2.set_ylabel("Allocation"); a2.grid(alpha=.3)
+    plt.tight_layout(); plt.savefig(out, dpi=130); plt.close(fig)
+    print(f"Chart -> {out}")
 
 
 if __name__ == "__main__":
