@@ -1,0 +1,40 @@
+name: Live desk
+
+# Weekdays after the US close (22:30 UTC = 5:30pm EST / 6:30pm EDT)
+on:
+  schedule:
+    - cron: "30 22 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: data-commit
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-live.txt
+      - run: pip install -r requirements-live.txt
+      - name: Tests
+        run: pytest -q
+      - name: Publish tonight's calls
+        run: python live.py
+      - name: Commit
+        run: |
+          git config user.name "rl-trader-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add web/public/data/live
+          if git diff --cached --quiet; then echo "No changes"; exit 0; fi
+          git commit -m "Live desk: calls for $(date -u +%Y-%m-%d)"
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"

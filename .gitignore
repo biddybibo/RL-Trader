@@ -27,3 +27,6 @@ data/cache/
 
 # Training logs
 logs/
+
+# Live-desk models are versioned
+!models/*.pt

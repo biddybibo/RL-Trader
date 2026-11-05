@@ -1,0 +1,8 @@
+[
+ {
+  "date": "2026-11-04",
+  "val_sharpe": 0.6398,
+  "lifetime_steps": 225000,
+  "train_end": "2025-11-04"
+ }
+]

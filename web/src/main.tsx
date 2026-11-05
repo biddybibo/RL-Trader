@@ -6,6 +6,7 @@ import Replay from "./pages/Replay";
 import Scorecard from "./pages/Scorecard";
 import Learning from "./pages/Learning";
 import Lab from "./pages/Lab";
+import Live from "./pages/Live";
 import "./styles.css";
 
 type Theme = "light" | "dark" | null;
@@ -32,6 +33,7 @@ function App() {
         <div className="wrap">
           <Link to="/" className="brand"><span className="brand-mark"><i /><i /><i /><i /></span><span className="brand-name">RL Trader</span></Link>
           <div className="nav-links">
+            <NavLink to="/live"><span className="live-dot" />Live</NavLink>
             <NavLink to="/replay/SPY">Replay</NavLink>
             <NavLink to="/scorecard">Scorecard</NavLink>
             <NavLink to="/learning">Learning</NavLink>
@@ -47,6 +49,7 @@ function App() {
           <Route path="/scorecard" element={<Scorecard />} />
           <Route path="/learning" element={<Learning />} />
           <Route path="/lab" element={<Lab />} />
+          <Route path="/live" element={<Live />} />
           <Route path="*" element={<div className="wrap"><h1>Not found</h1></div>} />
         </Routes>
       </main>

@@ -11,6 +11,7 @@
   /* chart series (validated: lightness band, chroma floor, CVD separation) */
   --s-agent: #CC7F18;
   --s-bench: #5F86CC;
+  --s-adapt: #D2589A;
   --up: #3BA57C;
   --down: #E0614E;
   --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
@@ -23,13 +24,13 @@
   :root:not([data-theme="dark"]) {
     --bg: #F2F4F7; --surface: #FFFFFF; --raise: #F7F8FA; --line: #DCE1E8; --grid: #EEF1F5;
     --fg: #121A24; --muted: #5A6677; --agent: #C27409; --agent-soft: rgba(194, 116, 9, .13);
-    --s-agent: #C27409; --s-bench: #4A6FB5; --up: #1E8A5F; --down: #C2412F; color-scheme: light;
+    --s-agent: #C27409; --s-bench: #4A6FB5; --s-adapt: #BE3F84; --up: #1E8A5F; --down: #C2412F; color-scheme: light;
   }
 }
 :root[data-theme="light"] {
   --bg: #F2F4F7; --surface: #FFFFFF; --raise: #F7F8FA; --line: #DCE1E8; --grid: #EEF1F5;
   --fg: #121A24; --muted: #5A6677; --agent: #C27409; --agent-soft: rgba(194, 116, 9, .13);
-  --s-agent: #C27409; --s-bench: #4A6FB5; --up: #1E8A5F; --down: #C2412F; color-scheme: light;
+  --s-agent: #C27409; --s-bench: #4A6FB5; --s-adapt: #BE3F84; --up: #1E8A5F; --down: #C2412F; color-scheme: light;
 }
 
 * { box-sizing: border-box; }
@@ -219,3 +220,16 @@ section.block { padding-block: 80px 0; }
 .knob { display: grid; grid-template-columns: 150px 1fr 64px; gap: 12px; align-items: center; font-size: .88rem; }
 .knob output { text-align: right; font-size: .85rem; }
 @media (max-width: 480px) { .knob { grid-template-columns: 1fr 64px; } .knob input { grid-column: 1 / -1; grid-row: 2; } }
+
+/* Live desk */
+.live-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--up); margin-right: 6px; vertical-align: 1px;
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--up) 60%, transparent); animation: ping 2s ease-out infinite; }
+@keyframes ping { 70% { box-shadow: 0 0 0 7px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+@media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
+.calls { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.call { text-align: left; background: var(--raise); border: 1px solid var(--line); border-radius: 10px; padding: 12px; cursor: pointer; display: grid; gap: 8px; align-content: start; }
+.call:hover { border-color: var(--muted); }
+.call-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.call-row { display: grid; grid-template-columns: 58px 1fr 38px 30px; gap: 8px; align-items: center; }
+.call-drivers { display: grid; gap: 2px; border-top: 1px solid var(--line); padding-top: 8px; }
+.empty { border: 1px dashed var(--line); border-radius: 10px; padding: 28px 22px; color: var(--muted); max-width: 720px; }

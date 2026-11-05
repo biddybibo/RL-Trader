@@ -16,6 +16,7 @@ const GROUPS: [string, string[]][] = [
 ];
 
 const EXHIBITS = [
+  { to: "/live", n: "00", title: "Live desk", tag: "Every weekday", body: "Tomorrow's allocation for 16 tickers, from a frozen agent and one that keeps learning, logged before the market opens." },
   { to: `/replay/${HERO}`, n: "01", title: "Full replay", tag: "17 stocks", body: "Every out-of-sample day for any stock: what it held, which inputs drove it, where its memory was." },
   { to: "/lab", n: "02", title: "Policy lab", tag: "Live model", body: "The trained network runs in your browser. Set VIX, trend and volatility and watch its answer change." },
   { to: "/scorecard", n: "03", title: "Scorecard", tag: "5 seeds", body: "Ten stocks it never saw, against buy & hold, a moving-average rule and random agents." },
@@ -53,8 +54,8 @@ export default function Home() {
           <div className="hero-copy">
             <p>RL Trader learned how much stock to hold from eleven years of market data. This site replays its decisions on days and stocks it never trained on, shows what drove each one, and reports honestly how it did.</p>
             <div className="controls">
-              <Link className="btn primary lg" to={`/replay/${HERO}`}>Open the full replay</Link>
-              <Link className="btn lg" to="/lab">Drive the model</Link>
+              <Link className="btn primary lg" to="/live">Tonight's live calls</Link>
+              <Link className="btn lg" to={`/replay/${HERO}`}>Open the full replay</Link>
             </div>
           </div>
         </div>
@@ -154,7 +155,7 @@ export default function Home() {
 
       <section className="block wrap">
         <div className="sec-head">
-          <h2>Four ways to look inside</h2>
+          <h2>Five ways to look inside</h2>
           <p>Everything here is generated from the trained agent and runs as a static site. The lab runs the network itself, in your browser.</p>
         </div>
         <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 260px), 1fr))" }}>
