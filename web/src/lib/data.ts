@@ -20,6 +20,7 @@ export type GroupSummary = {
 
 export type Manifest = {
   obs_names: string[];
+  feature_scaling: Record<string, [number, number]>;
   model: { source: string; hidden_dim: number; train_meta: Record<string, unknown> };
   memory_projection: { explained_variance: number[] };
   window: { start: string; end: string };

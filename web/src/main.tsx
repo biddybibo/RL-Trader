@@ -5,6 +5,7 @@ import Home from "./pages/Home";
 import Replay from "./pages/Replay";
 import Scorecard from "./pages/Scorecard";
 import Learning from "./pages/Learning";
+import Lab from "./pages/Lab";
 import "./styles.css";
 
 type Theme = "light" | "dark" | null;
@@ -34,6 +35,7 @@ function App() {
             <NavLink to="/replay/SPY">Replay</NavLink>
             <NavLink to="/scorecard">Scorecard</NavLink>
             <NavLink to="/learning">Learning</NavLink>
+            <NavLink to="/lab">Lab</NavLink>
           </div>
           <ThemeToggle />
         </div>
@@ -44,6 +46,7 @@ function App() {
           <Route path="/replay/:ticker?" element={<Replay />} />
           <Route path="/scorecard" element={<Scorecard />} />
           <Route path="/learning" element={<Learning />} />
+          <Route path="/lab" element={<Lab />} />
           <Route path="*" element={<div className="wrap"><h1>Not found</h1></div>} />
         </Routes>
       </main>

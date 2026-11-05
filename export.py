@@ -91,12 +91,15 @@ def export_onnx(agent: PPOAgent, path: str):
 
         def forward(self, obs, h, c):
             mean, _, value, (h2, c2) = self.net(obs, (h, c))
-            return mean.view(1), value.view(1), h2, c2
+            return mean.reshape(-1), value.reshape(-1), h2, c2
 
     hd = net.hidden_dim
     args = (torch.zeros(1, 1, OBS_DIM), torch.zeros(1, 1, hd), torch.zeros(1, 1, hd))
     torch.onnx.export(Step(), args, path, input_names=["obs", "h", "c"],
                       output_names=["allocation", "value", "h_out", "c_out"],
+                      dynamic_axes={"obs": {0: "batch"}, "h": {1: "batch"}, "c": {1: "batch"},
+                                    "allocation": {0: "batch"}, "value": {0: "batch"},
+                                    "h_out": {1: "batch"}, "c_out": {1: "batch"}},
                       opset_version=17, dynamo=False)
     # Parity check against PyTorch on random inputs, over a short rollout
     import onnxruntime as ort
@@ -111,7 +114,13 @@ def export_onnx(agent: PPOAgent, path: str):
         with torch.no_grad():
             m, _, vt, ht = net(torch.as_tensor(o), ht)
         worst = max(worst, abs(float(a[0]) - float(m)), abs(float(v[0]) - float(vt)))
-    return worst
+    # batched inputs (the browser's policy lab evaluates a grid in one call)
+    ob = rng.normal(size=(64, 1, OBS_DIM)).astype(np.float32)
+    zb = np.zeros((1, 64, hd), np.float32)
+    a, *_ = sess.run(None, {"obs": ob, "h": zb, "c": zb})
+    with torch.no_grad():
+        m = net(torch.as_tensor(ob), (torch.as_tensor(zb), torch.as_tensor(zb)))[0].reshape(-1).numpy()
+    return max(worst, float(np.abs(a - m).max()))
 
 
 def fit_projection(hiddens: np.ndarray):
