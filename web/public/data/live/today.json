@@ -1,5 +1,5 @@
 {
- "generated": "2026-11-27T04:23:39Z",
+ "generated": "2026-11-28T04:04:16Z",
  "anchor": "2026-01-01",
  "agents": {
   "frozen": {
@@ -9,36 +9,35 @@
    "calls": [
     {
      "ticker": "SPY",
-     "as_of": "2026-11-25",
-     "close": 716.7,
-     "day_return": -0.00289,
-     "allocation": 0.22,
-     "previous": 0.2124,
+     "as_of": "2026-11-27",
+     "close": 728.32,
+     "day_return": 0.01621,
+     "allocation": 0.1868,
+     "previous": 0.22,
      "drivers": [
       {
        "input": "vix_norm",
-       "effect": -0.0489
+       "effect": -0.0552
       },
       {
        "input": "sma_10",
-       "effect": 0.0219
+       "effect": 0.0161
+      },
+      {
+       "input": "day_cos",
+       "effect": -0.0099
       },
       {
        "input": "rsi",
-       "effect": 0.0113
+       "effect": 0.0092
       },
       {
-       "input": "day_sin",
-       "effect": -0.0098
-      },
-      {
-       "input": "log_return",
-       "effect": 0.0096
+       "input": "volume_ratio",
+       "effect": -0.0079
       }
      ],
-     "baseline": 0.2366,
+     "baseline": 0.2335,
      "spark": [
-      0.2381,
       0.2502,
       0.2497,
       0.2773,
@@ -67,41 +66,41 @@
       0.2115,
       0.2963,
       0.2124,
-      0.22
+      0.22,
+      0.1868
      ]
     },
     {
      "ticker": "QQQ",
-     "as_of": "2026-11-25",
-     "close": 633.93,
-     "day_return": -0.00653,
-     "allocation": 0.2054,
-     "previous": 0.1817,
+     "as_of": "2026-11-27",
+     "close": 650.99,
+     "day_return": 0.02691,
+     "allocation": 0.1702,
+     "previous": 0.2054,
      "drivers": [
       {
        "input": "vix_norm",
-       "effect": -0.0484
-      },
-      {
-       "input": "log_return",
-       "effect": 0.0406
+       "effect": -0.0567
       },
       {
        "input": "sma_10",
-       "effect": 0.0401
+       "effect": 0.0314
       },
       {
        "input": "volatility",
-       "effect": -0.0356
+       "effect": -0.0311
+      },
+      {
+       "input": "volume_ratio",
+       "effect": -0.0199
       },
       {
        "input": "rsi",
-       "effect": 0.0145
+       "effect": 0.0125
       }
      ],
-     "baseline": 0.1913,
+     "baseline": 0.2165,
      "spark": [
-      0.2576,
       0.2633,
       0.3485,
       0.3411,
@@ -130,41 +129,41 @@
       0.1799,
       0.339,
       0.1817,
-      0.2054
+      0.2054,
+      0.1702
      ]
     },
     {
      "ticker": "DIA",
-     "as_of": "2026-11-25",
-     "close": 501.27,
-     "day_return": 0.00306,
-     "allocation": 0.231,
-     "previous": 0.3121,
+     "as_of": "2026-11-27",
+     "close": 507.6,
+     "day_return": 0.01263,
+     "allocation": 0.1643,
+     "previous": 0.231,
      "drivers": [
       {
        "input": "vix_norm",
-       "effect": -0.055
+       "effect": -0.0497
       },
       {
-       "input": "log_return",
-       "effect": -0.0225
+       "input": "day_cos",
+       "effect": -0.0092
       },
       {
-       "input": "sma_10",
-       "effect": 0.0192
-      },
-      {
-       "input": "rsi",
-       "effect": 0.0135
+       "input": "volume_ratio",
+       "effect": -0.006
       },
       {
        "input": "day_sin",
-       "effect": -0.0107
+       "effect": -0.0048
+      },
+      {
+       "input": "rate_norm",
+       "effect": 0.0047
       }
      ],
-     "baseline": 0.2712,
+     "baseline": 0.2198,
      "spark": [
-      0.2558,
       0.2505,
       0.2298,
       0.2638,
@@ -193,41 +192,41 @@
       0.3594,
       0.4655,
       0.3121,
-      0.231
+      0.231,
+      0.1643
      ]
     },
     {
      "ticker": "IWM",
-     "as_of": "2026-11-25",
-     "close": 268.87,
-     "day_return": 0.00648,
-     "allocation": 0.2024,
-     "previous": 0.2427,
+     "as_of": "2026-11-27",
+     "close": 273.79,
+     "day_return": 0.0183,
+     "allocation": 0.1496,
+     "previous": 0.2024,
      "drivers": [
       {
        "input": "vix_norm",
-       "effect": -0.0492
+       "effect": -0.046
       },
       {
-       "input": "sma_10",
-       "effect": 0.0162
+       "input": "rate_norm",
+       "effect": 0.0143
+      },
+      {
+       "input": "volume_ratio",
+       "effect": -0.0099
+      },
+      {
+       "input": "day_cos",
+       "effect": -0.0082
       },
       {
        "input": "log_return",
-       "effect": -0.0112
-      },
-      {
-       "input": "day_sin",
-       "effect": -0.0092
-      },
-      {
-       "input": "rsi",
-       "effect": 0.0088
+       "effect": -0.0075
       }
      ],
-     "baseline": 0.2329,
+     "baseline": 0.2067,
      "spark": [
-      0.4616,
       0.3635,
       0.448,
       0.4876,
@@ -256,41 +255,41 @@
       0.2723,
       0.3489,
       0.2427,
-      0.2024
+      0.2024,
+      0.1496
      ]
     },
     {
      "ticker": "XLK",
-     "as_of": "2026-11-25",
-     "close": 155.79,
-     "day_return": -0.00828,
-     "allocation": 0.1622,
-     "previous": 0.1387,
+     "as_of": "2026-11-27",
+     "close": 160.15,
+     "day_return": 0.02799,
+     "allocation": 0.1467,
+     "previous": 0.1622,
      "drivers": [
       {
-       "input": "log_return",
-       "effect": 0.0545
+       "input": "vix_norm",
+       "effect": -0.0439
       },
       {
        "input": "volatility",
-       "effect": -0.0473
+       "effect": -0.0435
       },
       {
        "input": "sma_10",
-       "effect": 0.0437
-      },
-      {
-       "input": "vix_norm",
-       "effect": -0.0365
+       "effect": 0.0334
       },
       {
        "input": "rsi",
-       "effect": 0.0164
+       "effect": 0.0158
+      },
+      {
+       "input": "log_return",
+       "effect": 0.0122
       }
      ],
-     "baseline": 0.1497,
+     "baseline": 0.1893,
      "spark": [
-      0.2613,
       0.2843,
       0.4648,
       0.4285,
@@ -319,41 +318,41 @@
       0.1155,
       0.243,
       0.1387,
-      0.1622
+      0.1622,
+      0.1467
      ]
     },
     {
      "ticker": "XLF",
-     "as_of": "2026-11-25",
-     "close": 56.51,
-     "day_return": 0.00713,
-     "allocation": 0.1908,
-     "previous": 0.1958,
+     "as_of": "2026-11-27",
+     "close": 57.16,
+     "day_return": 0.0115,
+     "allocation": 0.1562,
+     "previous": 0.1908,
      "drivers": [
       {
        "input": "vix_norm",
-       "effect": -0.0419
+       "effect": -0.0423
       },
       {
        "input": "rate_norm",
-       "effect": 0.0127
+       "effect": 0.0129
       },
       {
        "input": "hw_proximity",
-       "effect": -0.0126
+       "effect": -0.009
       },
       {
-       "input": "sma_10",
-       "effect": 0.011
+       "input": "day_cos",
+       "effect": -0.008
       },
       {
-       "input": "log_return",
-       "effect": -0.0096
+       "input": "atr_norm",
+       "effect": 0.0071
       }
      ],
-     "baseline": 0.2203,
+     "baseline": 0.1965,
      "spark": [
-      0.2487,
       0.2292,
       0.22,
       0.245,
@@ -382,41 +381,41 @@
       0.1884,
       0.1883,
       0.1958,
-      0.1908
+      0.1908,
+      0.1562
      ]
     },
     {
      "ticker": "XLE",
-     "as_of": "2026-11-25",
-     "close": 60.9,
-     "day_return": 0.00744,
-     "allocation": 0.1745,
-     "previous": 0.178,
+     "as_of": "2026-11-27",
+     "close": 61.67,
+     "day_return": 0.01264,
+     "allocation": 0.1493,
+     "previous": 0.1745,
      "drivers": [
       {
        "input": "vix_norm",
-       "effect": -0.0394
-      },
-      {
-       "input": "sma_10",
-       "effect": 0.0201
+       "effect": -0.041
       },
       {
        "input": "volume_ratio",
-       "effect": 0.0131
+       "effect": 0.0154
       },
       {
        "input": "rate_norm",
-       "effect": 0.0127
+       "effect": 0.0153
       },
       {
-       "input": "log_return",
-       "effect": -0.0101
+       "input": "sma_10",
+       "effect": 0.0091
+      },
+      {
+       "input": "episode_return",
+       "effect": -0.0074
       }
      ],
-     "baseline": 0.1873,
+     "baseline": 0.1725,
      "spark": [
-      0.1463,
       0.1318,
       0.1476,
       0.1335,
@@ -445,16 +444,17 @@
       0.1521,
       0.1238,
       0.178,
-      0.1745
+      0.1745,
+      0.1493
      ]
     },
     {
      "ticker": "XLV",
-     "as_of": "2026-11-25",
-     "close": 183.68,
-     "day_return": -0.00563,
-     "allocation": 0.1685,
-     "previous": 0.2057,
+     "as_of": "2026-11-27",
+     "close": 184.2,
+     "day_return": 0.00283,
+     "allocation": 0.1269,
+     "previous": 0.1685,
      "drivers": [
       {
        "input": "vix_norm",
@@ -462,24 +462,23 @@
       },
       {
        "input": "rate_norm",
-       "effect": 0.0258
+       "effect": 0.0166
       },
       {
-       "input": "log_return",
-       "effect": -0.0169
+       "input": "day_cos",
+       "effect": -0.0074
       },
       {
        "input": "hw_proximity",
-       "effect": -0.0114
+       "effect": -0.0072
       },
       {
-       "input": "day_sin",
-       "effect": -0.0066
+       "input": "atr_norm",
+       "effect": 0.0064
       }
      ],
-     "baseline": 0.2085,
+     "baseline": 0.1595,
      "spark": [
-      0.229,
       0.2172,
       0.2039,
       0.2099,
@@ -508,41 +507,41 @@
       0.229,
       0.1924,
       0.2057,
-      0.1685
+      0.1685,
+      0.1269
      ]
     },
     {
      "ticker": "AAPL",
-     "as_of": "2026-11-25",
-     "close": 355.58,
-     "day_return": 0.00426,
-     "allocation": 0.1374,
-     "previous": 0.1344,
+     "as_of": "2026-11-27",
+     "close": 358.54,
+     "day_return": 0.00832,
+     "allocation": 0.1127,
+     "previous": 0.1374,
      "drivers": [
       {
        "input": "vix_norm",
-       "effect": -0.025
+       "effect": -0.0269
       },
       {
        "input": "rate_norm",
-       "effect": 0.0238
+       "effect": 0.021
       },
       {
-       "input": "hw_proximity",
-       "effect": -0.0059
+       "input": "day_cos",
+       "effect": -0.0061
       },
       {
-       "input": "volume_ratio",
-       "effect": 0.0059
+       "input": "episode_return",
+       "effect": -0.0043
       },
       {
-       "input": "day_sin",
-       "effect": -0.0055
+       "input": "atr_norm",
+       "effect": 0.0041
       }
      ],
-     "baseline": 0.143,
+     "baseline": 0.1322,
      "spark": [
-      0.1773,
       0.1769,
       0.1712,
       0.187,
@@ -571,41 +570,41 @@
       0.1192,
       0.0982,
       0.1344,
-      0.1374
+      0.1374,
+      0.1127
      ]
     },
     {
      "ticker": "MSFT",
-     "as_of": "2026-11-25",
-     "close": 489.93,
-     "day_return": -0.0125,
-     "allocation": 0.1566,
-     "previous": 0.1745,
+     "as_of": "2026-11-27",
+     "close": 492.85,
+     "day_return": 0.00596,
+     "allocation": 0.1415,
+     "previous": 0.1566,
      "drivers": [
       {
        "input": "vix_norm",
-       "effect": -0.0365
-      },
-      {
-       "input": "rate_norm",
-       "effect": 0.0195
-      },
-      {
-       "input": "volume_ratio",
-       "effect": 0.0143
+       "effect": -0.0407
       },
       {
        "input": "sma_10",
-       "effect": 0.0135
+       "effect": 0.0174
       },
       {
-       "input": "hw_proximity",
-       "effect": -0.0106
+       "input": "log_return",
+       "effect": 0.0124
+      },
+      {
+       "input": "rate_norm",
+       "effect": 0.0089
+      },
+      {
+       "input": "volatility",
+       "effect": -0.0081
       }
      ],
-     "baseline": 0.1734,
+     "baseline": 0.1545,
      "spark": [
-      0.1374,
       0.1526,
       0.1613,
       0.1835,
@@ -634,41 +633,41 @@
       0.1656,
       0.1822,
       0.1745,
-      0.1566
+      0.1566,
+      0.1415
      ]
     },
     {
      "ticker": "NVDA",
-     "as_of": "2026-11-25",
-     "close": 149.3,
-     "day_return": -0.03913,
-     "allocation": 0.9461,
-     "previous": 0.817,
+     "as_of": "2026-11-27",
+     "close": 150.49,
+     "day_return": 0.00797,
+     "allocation": 0.9766,
+     "previous": 0.9461,
      "drivers": [
       {
-       "input": "log_return",
-       "effect": 0.1839
+       "input": "volatility",
+       "effect": -0.0555
       },
       {
-       "input": "volatility",
-       "effect": -0.144
+       "input": "log_return",
+       "effect": 0.0469
       },
       {
        "input": "drawdown",
-       "effect": 0.0992
+       "effect": 0.046
       },
       {
        "input": "rate_norm",
-       "effect": -0.0798
+       "effect": -0.035
       },
       {
        "input": "sma_30",
-       "effect": 0.0744
+       "effect": 0.0295
       }
      ],
-     "baseline": 0.7655,
+     "baseline": 0.9129,
      "spark": [
-      0.2366,
       0.3392,
       0.4619,
       0.3878,
@@ -697,41 +696,41 @@
       0.9956,
       0.9964,
       0.817,
-      0.9461
+      0.9461,
+      0.9766
      ]
     },
     {
      "ticker": "AMZN",
-     "as_of": "2026-11-25",
-     "close": 244.43,
-     "day_return": -0.03115,
-     "allocation": 0.0962,
-     "previous": 0.0827,
+     "as_of": "2026-11-27",
+     "close": 254.12,
+     "day_return": 0.03964,
+     "allocation": 0.1196,
+     "previous": 0.0962,
      "drivers": [
       {
-       "input": "rate_norm",
-       "effect": 0.0225
+       "input": "sma_10",
+       "effect": 0.0387
+      },
+      {
+       "input": "log_return",
+       "effect": 0.0363
       },
       {
        "input": "vix_norm",
-       "effect": -0.0204
-      },
-      {
-       "input": "sma_10",
-       "effect": 0.0143
+       "effect": -0.0331
       },
       {
        "input": "volatility",
-       "effect": -0.0136
+       "effect": -0.0175
       },
       {
-       "input": "volume_ratio",
-       "effect": 0.0127
+       "input": "rsi",
+       "effect": 0.0096
       }
      ],
-     "baseline": 0.0918,
+     "baseline": 0.1019,
      "spark": [
-      0.2023,
       0.2107,
       0.2486,
       0.2144,
@@ -760,41 +759,41 @@
       0.0578,
       0.1026,
       0.0827,
-      0.0962
+      0.0962,
+      0.1196
      ]
     },
     {
      "ticker": "GOOGL",
-     "as_of": "2026-11-25",
-     "close": 273.1,
-     "day_return": -0.02132,
-     "allocation": 0.2395,
-     "previous": 0.2474,
+     "as_of": "2026-11-27",
+     "close": 274.96,
+     "day_return": 0.00681,
+     "allocation": 0.2598,
+     "previous": 0.2395,
      "drivers": [
       {
        "input": "volatility",
-       "effect": -0.0814
-      },
-      {
-       "input": "hw_proximity",
-       "effect": 0.0532
+       "effect": -0.0819
       },
       {
        "input": "vix_norm",
-       "effect": -0.0529
+       "effect": -0.0686
       },
       {
        "input": "log_return",
-       "effect": 0.0301
+       "effect": 0.0672
       },
       {
-       "input": "rsi",
-       "effect": 0.0285
+       "input": "hw_proximity",
+       "effect": 0.0581
+      },
+      {
+       "input": "sma_10",
+       "effect": 0.0536
       }
      ],
-     "baseline": 0.2014,
+     "baseline": 0.201,
      "spark": [
-      0.1935,
       0.2107,
       0.2523,
       0.2641,
@@ -823,41 +822,41 @@
       0.4658,
       0.569,
       0.2474,
-      0.2395
+      0.2395,
+      0.2598
      ]
     },
     {
      "ticker": "META",
-     "as_of": "2026-11-25",
-     "close": 609.89,
-     "day_return": 0.03403,
-     "allocation": 0.2086,
-     "previous": 0.1994,
+     "as_of": "2026-11-27",
+     "close": 628.96,
+     "day_return": 0.03127,
+     "allocation": 0.1214,
+     "previous": 0.2086,
      "drivers": [
       {
-       "input": "sma_10",
-       "effect": 0.0456
+       "input": "vix_norm",
+       "effect": -0.0332
       },
       {
-       "input": "vix_norm",
-       "effect": -0.041
+       "input": "rate_norm",
+       "effect": 0.0302
       },
       {
        "input": "volatility",
-       "effect": -0.0338
+       "effect": -0.0206
       },
       {
        "input": "log_return",
-       "effect": 0.0278
+       "effect": -0.0193
       },
       {
-       "input": "hw_proximity",
-       "effect": 0.0275
+       "input": "episode_return",
+       "effect": -0.0101
       }
      ],
-     "baseline": 0.1691,
+     "baseline": 0.1797,
      "spark": [
-      0.0648,
       0.0705,
       0.0995,
       0.1515,
@@ -886,41 +885,41 @@
       0.2125,
       0.4794,
       0.1994,
-      0.2086
+      0.2086,
+      0.1214
      ]
     },
     {
      "ticker": "TSLA",
-     "as_of": "2026-11-25",
-     "close": 380.14,
-     "day_return": -0.0118,
-     "allocation": 0.0318,
-     "previous": 0.0438,
+     "as_of": "2026-11-27",
+     "close": 400.0,
+     "day_return": 0.05224,
+     "allocation": 0.0253,
+     "previous": 0.0318,
      "drivers": [
       {
-       "input": "rate_norm",
-       "effect": 0.0155
-      },
-      {
        "input": "volatility",
-       "effect": -0.0149
+       "effect": -0.011
       },
       {
-       "input": "atr_norm",
-       "effect": -0.0081
+       "input": "rate_norm",
+       "effect": 0.0099
       },
       {
        "input": "vix_norm",
-       "effect": -0.0061
+       "effect": -0.0053
+      },
+      {
+       "input": "atr_norm",
+       "effect": -0.005
       },
       {
        "input": "episode_return",
-       "effect": -0.0048
+       "effect": -0.0036
       }
      ],
-     "baseline": 0.0501,
+     "baseline": 0.0418,
      "spark": [
-      0.1477,
       0.1957,
       0.2583,
       0.172,
@@ -949,41 +948,41 @@
       0.0435,
       0.094,
       0.0438,
-      0.0318
+      0.0318,
+      0.0253
      ]
     },
     {
      "ticker": "JPM",
-     "as_of": "2026-11-25",
-     "close": 316.74,
-     "day_return": -0.00114,
-     "allocation": 0.3781,
-     "previous": 0.3903,
+     "as_of": "2026-11-27",
+     "close": 322.96,
+     "day_return": 0.01964,
+     "allocation": 0.3137,
+     "previous": 0.3781,
      "drivers": [
       {
-       "input": "sma_10",
-       "effect": 0.1052
+       "input": "vix_norm",
+       "effect": -0.0839
       },
       {
-       "input": "vix_norm",
-       "effect": -0.0741
+       "input": "sma_10",
+       "effect": 0.0759
       },
       {
        "input": "rsi",
-       "effect": 0.0488
+       "effect": 0.0422
       },
       {
        "input": "rate_norm",
-       "effect": -0.0385
+       "effect": -0.0293
       },
       {
        "input": "drawdown",
-       "effect": 0.0237
+       "effect": 0.0204
       }
      ],
-     "baseline": 0.3048,
+     "baseline": 0.2889,
      "spark": [
-      0.2323,
       0.2169,
       0.2092,
       0.239,
@@ -1012,7 +1011,8 @@
       0.3369,
       0.4521,
       0.3903,
-      0.3781
+      0.3781,
+      0.3137
      ]
     }
    ]
@@ -1024,36 +1024,35 @@
    "calls": [
     {
      "ticker": "SPY",
-     "as_of": "2026-11-25",
-     "close": 716.7,
-     "day_return": -0.00289,
-     "allocation": 0.1711,
-     "previous": 0.1846,
+     "as_of": "2026-11-27",
+     "close": 728.32,
+     "day_return": 0.01621,
+     "allocation": 0.1281,
+     "previous": 0.1711,
      "drivers": [
       {
        "input": "vix_norm",
-       "effect": -0.0647
+       "effect": -0.0683
+      },
+      {
+       "input": "day_cos",
+       "effect": -0.0136
       },
       {
        "input": "sma_10",
-       "effect": 0.02
+       "effect": 0.011
+      },
+      {
+       "input": "volume_ratio",
+       "effect": -0.0106
       },
       {
        "input": "day_sin",
-       "effect": -0.016
-      },
-      {
-       "input": "log_return",
-       "effect": 0.0112
-      },
-      {
-       "input": "drawdown",
-       "effect": 0.0073
+       "effect": -0.0091
       }
      ],
-     "baseline": 0.2148,
+     "baseline": 0.2064,
      "spark": [
-      0.5143,
       0.5404,
       0.5821,
       0.6133,
@@ -1082,41 +1081,41 @@
       0.3747,
       0.5242,
       0.1846,
-      0.1711
+      0.1711,
+      0.1281
      ]
     },
     {
      "ticker": "QQQ",
-     "as_of": "2026-11-25",
-     "close": 633.93,
-     "day_return": -0.00653,
-     "allocation": 0.063,
-     "previous": 0.062,
+     "as_of": "2026-11-27",
+     "close": 650.99,
+     "day_return": 0.02691,
+     "allocation": 0.042,
+     "previous": 0.063,
      "drivers": [
-      {
-       "input": "volatility",
-       "effect": -0.0276
-      },
       {
        "input": "vix_norm",
        "effect": -0.0275
       },
       {
-       "input": "log_return",
-       "effect": 0.0168
+       "input": "volatility",
+       "effect": -0.0203
       },
       {
        "input": "atr_norm",
-       "effect": -0.0159
+       "effect": -0.012
       },
       {
-       "input": "sma_10",
-       "effect": 0.0115
+       "input": "rate_norm",
+       "effect": 0.0113
+      },
+      {
+       "input": "volume_ratio",
+       "effect": -0.0108
       }
      ],
-     "baseline": 0.1032,
+     "baseline": 0.1011,
      "spark": [
-      0.3934,
       0.4032,
       0.5317,
       0.4994,
@@ -1145,41 +1144,41 @@
       0.1088,
       0.2349,
       0.062,
-      0.063
+      0.063,
+      0.042
      ]
     },
     {
      "ticker": "DIA",
-     "as_of": "2026-11-25",
-     "close": 501.27,
-     "day_return": 0.00306,
-     "allocation": 0.2589,
-     "previous": 0.3764,
+     "as_of": "2026-11-27",
+     "close": 507.6,
+     "day_return": 0.01263,
+     "allocation": 0.1885,
+     "previous": 0.2589,
      "drivers": [
       {
        "input": "vix_norm",
-       "effect": -0.0943
+       "effect": -0.0885
       },
       {
-       "input": "log_return",
-       "effect": -0.038
+       "input": "day_cos",
+       "effect": -0.0171
       },
       {
-       "input": "sma_10",
-       "effect": 0.0271
+       "input": "atr_norm",
+       "effect": 0.0142
       },
       {
-       "input": "rate_norm",
-       "effect": -0.0254
+       "input": "volatility",
+       "effect": 0.0124
       },
       {
        "input": "day_sin",
-       "effect": -0.0234
+       "effect": -0.012
       }
      ],
-     "baseline": 0.3248,
+     "baseline": 0.2721,
      "spark": [
-      0.5995,
       0.5555,
       0.5092,
       0.5775,
@@ -1208,41 +1207,41 @@
       0.6045,
       0.6952,
       0.3764,
-      0.2589
+      0.2589,
+      0.1885
      ]
     },
     {
      "ticker": "IWM",
-     "as_of": "2026-11-25",
-     "close": 268.87,
-     "day_return": 0.00648,
-     "allocation": 0.1927,
-     "previous": 0.2713,
+     "as_of": "2026-11-27",
+     "close": 273.79,
+     "day_return": 0.0183,
+     "allocation": 0.1327,
+     "previous": 0.1927,
      "drivers": [
       {
        "input": "vix_norm",
-       "effect": -0.0801
+       "effect": -0.074
+      },
+      {
+       "input": "rate_norm",
+       "effect": 0.0242
+      },
+      {
+       "input": "volume_ratio",
+       "effect": -0.0158
+      },
+      {
+       "input": "day_cos",
+       "effect": -0.0133
       },
       {
        "input": "drawdown",
-       "effect": 0.0283
-      },
-      {
-       "input": "sma_10",
-       "effect": 0.0203
-      },
-      {
-       "input": "day_sin",
-       "effect": -0.019
-      },
-      {
-       "input": "log_return",
-       "effect": -0.0183
+       "effect": 0.0099
       }
      ],
-     "baseline": 0.2567,
+     "baseline": 0.2228,
      "spark": [
-      0.8106,
       0.7217,
       0.8042,
       0.8065,
@@ -1271,41 +1270,41 @@
       0.4773,
       0.5959,
       0.2713,
-      0.1927
+      0.1927,
+      0.1327
      ]
     },
     {
      "ticker": "XLK",
-     "as_of": "2026-11-25",
-     "close": 155.79,
-     "day_return": -0.00828,
-     "allocation": 0.0384,
-     "previous": 0.0377,
+     "as_of": "2026-11-27",
+     "close": 160.15,
+     "day_return": 0.02799,
+     "allocation": 0.0281,
+     "previous": 0.0384,
      "drivers": [
       {
        "input": "volatility",
-       "effect": -0.0277
-      },
-      {
-       "input": "atr_norm",
-       "effect": -0.0185
+       "effect": -0.0206
       },
       {
        "input": "vix_norm",
-       "effect": -0.0173
+       "effect": -0.0181
       },
       {
-       "input": "log_return",
-       "effect": 0.0172
+       "input": "atr_norm",
+       "effect": -0.0151
       },
       {
        "input": "sma_10",
-       "effect": 0.0109
+       "effect": 0.0055
+      },
+      {
+       "input": "rate_norm",
+       "effect": 0.0045
       }
      ],
-     "baseline": 0.0811,
+     "baseline": 0.0806,
      "spark": [
-      0.4023,
       0.4345,
       0.6437,
       0.5788,
@@ -1334,41 +1333,41 @@
       0.0482,
       0.1357,
       0.0377,
-      0.0384
+      0.0384,
+      0.0281
      ]
     },
     {
      "ticker": "XLF",
-     "as_of": "2026-11-25",
-     "close": 56.51,
-     "day_return": 0.00713,
-     "allocation": 0.2645,
-     "previous": 0.3342,
+     "as_of": "2026-11-27",
+     "close": 57.16,
+     "day_return": 0.0115,
+     "allocation": 0.1995,
+     "previous": 0.2645,
      "drivers": [
       {
        "input": "vix_norm",
-       "effect": -0.0978
+       "effect": -0.0917
+      },
+      {
+       "input": "atr_norm",
+       "effect": 0.0168
+      },
+      {
+       "input": "day_cos",
+       "effect": -0.0148
       },
       {
        "input": "log_return",
-       "effect": -0.0388
-      },
-      {
-       "input": "sma_10",
-       "effect": 0.0321
-      },
-      {
-       "input": "day_sin",
-       "effect": -0.0248
+       "effect": -0.0146
       },
       {
        "input": "volatility",
-       "effect": 0.023
+       "effect": 0.0146
       }
      ],
-     "baseline": 0.3249,
+     "baseline": 0.2729,
      "spark": [
-      0.5835,
       0.5164,
       0.4674,
       0.5437,
@@ -1397,41 +1396,41 @@
       0.4271,
       0.4788,
       0.3342,
-      0.2645
+      0.2645,
+      0.1995
      ]
     },
     {
      "ticker": "XLE",
-     "as_of": "2026-11-25",
-     "close": 60.9,
-     "day_return": 0.00744,
-     "allocation": 0.1043,
-     "previous": 0.104,
+     "as_of": "2026-11-27",
+     "close": 61.67,
+     "day_return": 0.01264,
+     "allocation": 0.0935,
+     "previous": 0.1043,
      "drivers": [
       {
        "input": "vix_norm",
-       "effect": -0.0361
-      },
-      {
-       "input": "sma_10",
-       "effect": 0.0176
+       "effect": -0.0398
       },
       {
        "input": "volume_ratio",
-       "effect": 0.0163
+       "effect": 0.0197
       },
       {
-       "input": "log_return",
-       "effect": -0.0137
+       "input": "rate_norm",
+       "effect": 0.0125
       },
       {
        "input": "rsi",
-       "effect": 0.0132
+       "effect": 0.0074
+      },
+      {
+       "input": "log_return",
+       "effect": -0.0071
       }
      ],
-     "baseline": 0.1137,
+     "baseline": 0.1089,
      "spark": [
-      0.1891,
       0.1654,
       0.1788,
       0.1581,
@@ -1460,41 +1459,41 @@
       0.0759,
       0.0551,
       0.104,
-      0.1043
+      0.1043,
+      0.0935
      ]
     },
     {
      "ticker": "XLV",
-     "as_of": "2026-11-25",
-     "close": 183.68,
-     "day_return": -0.00563,
-     "allocation": 0.0617,
-     "previous": 0.0848,
+     "as_of": "2026-11-27",
+     "close": 184.2,
+     "day_return": 0.00283,
+     "allocation": 0.0459,
+     "previous": 0.0617,
      "drivers": [
       {
        "input": "vix_norm",
-       "effect": -0.0232
+       "effect": -0.023
       },
       {
        "input": "rate_norm",
-       "effect": 0.0194
+       "effect": 0.0155
       },
       {
-       "input": "log_return",
-       "effect": -0.0077
-      },
-      {
-       "input": "day_sin",
-       "effect": -0.0065
+       "input": "atr_norm",
+       "effect": 0.0042
       },
       {
        "input": "episode_return",
-       "effect": -0.0049
+       "effect": -0.0039
+      },
+      {
+       "input": "volume_ratio",
+       "effect": -0.0039
       }
      ],
-     "baseline": 0.0776,
+     "baseline": 0.0593,
      "spark": [
-      0.1992,
       0.215,
       0.2065,
       0.2237,
@@ -1523,41 +1522,41 @@
       0.1378,
       0.0897,
       0.0848,
-      0.0617
+      0.0617,
+      0.0459
      ]
     },
     {
      "ticker": "AAPL",
-     "as_of": "2026-11-25",
-     "close": 355.58,
-     "day_return": 0.00426,
-     "allocation": 0.0936,
-     "previous": 0.0794,
+     "as_of": "2026-11-27",
+     "close": 358.54,
+     "day_return": 0.00832,
+     "allocation": 0.0789,
+     "previous": 0.0936,
      "drivers": [
       {
        "input": "vix_norm",
-       "effect": -0.029
+       "effect": -0.0334
       },
       {
        "input": "rate_norm",
-       "effect": 0.0225
-      },
-      {
-       "input": "volume_ratio",
-       "effect": 0.0099
-      },
-      {
-       "input": "day_sin",
-       "effect": -0.0093
+       "effect": 0.0216
       },
       {
        "input": "month_sin",
        "effect": -0.0062
+      },
+      {
+       "input": "day_sin",
+       "effect": -0.005
+      },
+      {
+       "input": "hw_proximity",
+       "effect": 0.0044
       }
      ],
-     "baseline": 0.0935,
+     "baseline": 0.0918,
      "spark": [
-      0.1808,
       0.21,
       0.1588,
       0.2001,
@@ -1586,41 +1585,41 @@
       0.0802,
       0.0519,
       0.0794,
-      0.0936
+      0.0936,
+      0.0789
      ]
     },
     {
      "ticker": "MSFT",
-     "as_of": "2026-11-25",
-     "close": 489.93,
-     "day_return": -0.0125,
-     "allocation": 0.0549,
-     "previous": 0.0567,
+     "as_of": "2026-11-27",
+     "close": 492.85,
+     "day_return": 0.00596,
+     "allocation": 0.0451,
+     "previous": 0.0549,
      "drivers": [
       {
        "input": "vix_norm",
-       "effect": -0.0229
+       "effect": -0.0246
       },
       {
        "input": "rate_norm",
-       "effect": 0.0159
-      },
-      {
-       "input": "volume_ratio",
-       "effect": 0.0109
+       "effect": 0.0097
       },
       {
        "input": "volatility",
-       "effect": -0.0072
+       "effect": -0.0068
       },
       {
        "input": "atr_norm",
-       "effect": -0.0072
+       "effect": -0.006
+      },
+      {
+       "input": "log_return",
+       "effect": 0.0049
       }
      ],
-     "baseline": 0.0742,
+     "baseline": 0.0687,
      "spark": [
-      0.1551,
       0.1685,
       0.1958,
       0.1956,
@@ -1649,41 +1648,41 @@
       0.0586,
       0.052,
       0.0567,
-      0.0549
+      0.0549,
+      0.0451
      ]
     },
     {
      "ticker": "NVDA",
-     "as_of": "2026-11-25",
-     "close": 149.3,
-     "day_return": -0.03913,
-     "allocation": 0.3447,
-     "previous": 0.3838,
+     "as_of": "2026-11-27",
+     "close": 150.49,
+     "day_return": 0.00797,
+     "allocation": 0.2565,
+     "previous": 0.3447,
      "drivers": [
       {
        "input": "volatility",
-       "effect": -0.4645
+       "effect": -0.4462
       },
       {
        "input": "log_return",
-       "effect": 0.3971
-      },
-      {
-       "input": "rate_norm",
-       "effect": -0.1479
+       "effect": 0.2555
       },
       {
        "input": "drawdown",
-       "effect": 0.1426
+       "effect": 0.163
       },
       {
-       "input": "sma_30",
-       "effect": 0.0902
+       "input": "rate_norm",
+       "effect": -0.1579
+      },
+      {
+       "input": "vix_norm",
+       "effect": -0.1069
       }
      ],
-     "baseline": 0.386,
+     "baseline": 0.3868,
      "spark": [
-      0.3298,
       0.4753,
       0.571,
       0.4136,
@@ -1712,20 +1711,29 @@
       0.9761,
       0.9938,
       0.3838,
-      0.3447
+      0.3447,
+      0.2565
      ]
     },
     {
      "ticker": "AMZN",
-     "as_of": "2026-11-25",
-     "close": 244.43,
-     "day_return": -0.03115,
-     "allocation": 0.0277,
-     "previous": 0.0295,
+     "as_of": "2026-11-27",
+     "close": 254.12,
+     "day_return": 0.03964,
+     "allocation": 0.0257,
+     "previous": 0.0277,
      "drivers": [
       {
        "input": "vix_norm",
-       "effect": -0.012
+       "effect": -0.014
+      },
+      {
+       "input": "log_return",
+       "effect": 0.0123
+      },
+      {
+       "input": "sma_10",
+       "effect": 0.0107
       },
       {
        "input": "volatility",
@@ -1733,20 +1741,11 @@
       },
       {
        "input": "atr_norm",
-       "effect": -0.0082
-      },
-      {
-       "input": "volume_ratio",
-       "effect": 0.0069
-      },
-      {
-       "input": "rate_norm",
-       "effect": 0.0063
+       "effect": -0.005
       }
      ],
-     "baseline": 0.0423,
+     "baseline": 0.0398,
      "spark": [
-      0.3325,
       0.358,
       0.4443,
       0.2398,
@@ -1775,41 +1774,41 @@
       0.0487,
       0.0521,
       0.0295,
-      0.0277
+      0.0277,
+      0.0257
      ]
     },
     {
      "ticker": "GOOGL",
-     "as_of": "2026-11-25",
-     "close": 273.1,
-     "day_return": -0.02132,
-     "allocation": 0.0858,
-     "previous": 0.0792,
+     "as_of": "2026-11-27",
+     "close": 274.96,
+     "day_return": 0.00681,
+     "allocation": 0.0924,
+     "previous": 0.0858,
      "drivers": [
       {
        "input": "volatility",
-       "effect": -0.0506
+       "effect": -0.0559
       },
       {
        "input": "vix_norm",
-       "effect": -0.0255
-      },
-      {
-       "input": "atr_norm",
-       "effect": -0.0224
-      },
-      {
-       "input": "volume_ratio",
-       "effect": 0.0154
+       "effect": -0.0373
       },
       {
        "input": "log_return",
-       "effect": 0.011
+       "effect": 0.0331
+      },
+      {
+       "input": "atr_norm",
+       "effect": -0.0215
+      },
+      {
+       "input": "rate_norm",
+       "effect": -0.0213
       }
      ],
-     "baseline": 0.1366,
+     "baseline": 0.1499,
      "spark": [
-      0.2117,
       0.247,
       0.2987,
       0.2762,
@@ -1838,41 +1837,41 @@
       0.1108,
       0.1824,
       0.0792,
-      0.0858
+      0.0858,
+      0.0924
      ]
     },
     {
      "ticker": "META",
-     "as_of": "2026-11-25",
-     "close": 609.89,
-     "day_return": 0.03403,
-     "allocation": 0.0474,
-     "previous": 0.0507,
+     "as_of": "2026-11-27",
+     "close": 628.96,
+     "day_return": 0.03127,
+     "allocation": 0.0336,
+     "previous": 0.0474,
      "drivers": [
       {
-       "input": "volatility",
-       "effect": -0.0192
-      },
-      {
        "input": "vix_norm",
-       "effect": -0.0191
+       "effect": -0.0152
       },
       {
        "input": "atr_norm",
-       "effect": -0.0149
+       "effect": -0.0118
       },
       {
-       "input": "volume_ratio",
-       "effect": 0.0134
+       "input": "volatility",
+       "effect": -0.0116
       },
       {
-       "input": "sma_10",
-       "effect": 0.0099
+       "input": "rate_norm",
+       "effect": 0.0078
+      },
+      {
+       "input": "episode_return",
+       "effect": -0.003
       }
      ],
-     "baseline": 0.0783,
+     "baseline": 0.0759,
      "spark": [
-      0.0382,
       0.0434,
       0.0538,
       0.0714,
@@ -1901,41 +1900,41 @@
       0.0818,
       0.2225,
       0.0507,
-      0.0474
+      0.0474,
+      0.0336
      ]
     },
     {
      "ticker": "TSLA",
-     "as_of": "2026-11-25",
-     "close": 380.14,
-     "day_return": -0.0118,
-     "allocation": 0.0098,
-     "previous": 0.0145,
+     "as_of": "2026-11-27",
+     "close": 400.0,
+     "day_return": 0.05224,
+     "allocation": 0.0083,
+     "previous": 0.0098,
      "drivers": [
       {
-       "input": "atr_norm",
-       "effect": -0.0057
+       "input": "volatility",
+       "effect": -0.0044
       },
       {
-       "input": "volatility",
-       "effect": -0.0053
+       "input": "atr_norm",
+       "effect": -0.0043
       },
       {
        "input": "rate_norm",
-       "effect": 0.004
+       "effect": 0.0033
       },
       {
        "input": "vix_norm",
-       "effect": -0.0017
+       "effect": -0.0018
       },
       {
-       "input": "volume_ratio",
-       "effect": 0.0009
+       "input": "episode_return",
+       "effect": -0.0005
       }
      ],
-     "baseline": 0.019,
+     "baseline": 0.0169,
      "spark": [
-      0.2279,
       0.3048,
       0.3367,
       0.1697,
@@ -1964,41 +1963,41 @@
       0.0113,
       0.021,
       0.0145,
-      0.0098
+      0.0098,
+      0.0083
      ]
     },
     {
      "ticker": "JPM",
-     "as_of": "2026-11-25",
-     "close": 316.74,
-     "day_return": -0.00114,
-     "allocation": 0.2791,
-     "previous": 0.3432,
+     "as_of": "2026-11-27",
+     "close": 322.96,
+     "day_return": 0.01964,
+     "allocation": 0.188,
+     "previous": 0.2791,
      "drivers": [
       {
-       "input": "sma_10",
-       "effect": 0.1206
-      },
-      {
        "input": "vix_norm",
-       "effect": -0.1067
+       "effect": -0.0983
       },
       {
-       "input": "rate_norm",
-       "effect": -0.0647
-      },
-      {
-       "input": "drawdown",
-       "effect": 0.0425
+       "input": "sma_10",
+       "effect": 0.062
       },
       {
        "input": "rsi",
-       "effect": 0.0411
+       "effect": 0.0284
+      },
+      {
+       "input": "drawdown",
+       "effect": 0.0277
+      },
+      {
+       "input": "rate_norm",
+       "effect": -0.0276
       }
      ],
-     "baseline": 0.2651,
+     "baseline": 0.2298,
      "spark": [
-      0.3753,
       0.3886,
       0.333,
       0.4157,
@@ -2027,7 +2026,8 @@
       0.4374,
       0.543,
       0.3432,
-      0.2791
+      0.2791,
+      0.188
      ]
     }
    ]
